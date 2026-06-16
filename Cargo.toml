@@ -13,6 +13,9 @@ cortex-m = { version = "0.7", features = ["inline-asm", "critical-section-single
 cortex-m-rt = "0.7"
 panic-halt = "1.0"
 heapless = "0.8"
+ssd1306 = "0.9"
+embedded-graphics = "0.8"
+display-interface = "0.5"
 
 [profile.release]
 opt-level = "s"
