@@ -1,1 +1,4 @@
-/target
+mcu/target
+ios/build
+ios/*.xcworkspace/xcuserdata
+ios/DerivedData
