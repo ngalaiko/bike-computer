@@ -1,0 +1,36 @@
+[tools]
+swiftlint = "0.63.3"
+swiftformat = "0.61.1"
+"gem:xcpretty" = "latest"
+
+[tasks.build]
+description = "Build the app for iPhone 17 simulator"
+run = """
+xcodebuild \
+  -project BikeComputer.xcodeproj \
+  -scheme BikeComputer \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -derivedDataPath .build \
+  build \
+  | xcpretty
+"""
+
+[tasks.run]
+description = "Launch the app in the iPhone 17 simulator"
+depends = ["build"]
+run = """
+xcrun simctl boot "iPhone 17" 2>/dev/null || true
+open -a Simulator
+xcrun simctl bootstatus "iPhone 17" -b
+xcrun simctl install "iPhone 17" .build/Build/Products/Debug-iphonesimulator/BikeComputer.app
+xcrun simctl launch --console "iPhone 17" com.galaiko.BikeComputer
+"""
+
+[tasks.lint]
+description = "Lint Swift sources with SwiftLint"
+run = "swiftlint lint --strict BikeComputer"
+
+[tasks.format]
+description = "Format Swift sources with SwiftFormat"
+run = "swiftformat BikeComputer"
+

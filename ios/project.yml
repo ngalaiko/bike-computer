@@ -1,0 +1,35 @@
+name: BikeComputer
+options:
+  bundleIdPrefix: com.galaiko
+  deploymentTarget:
+    iOS: "26.0"
+  defaultConfig: Debug
+  xcodeVersion: "16.4"
+
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    ENABLE_STRICT_CONCURRENCY: complete
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  BikeComputer:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: BikeComputer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.galaiko.BikeComputer
+        DEVELOPMENT_TEAM: ""
+        INFOPLIST_FILE: BikeComputer/App/Info.plist
+        CODE_SIGN_STYLE: Automatic
+    entitlements:
+      path: BikeComputer/App/BikeComputer.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access:
+          - health-records
+    dependencies: []
+    preBuildScripts: []
