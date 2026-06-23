@@ -42,9 +42,10 @@ impl Ble {
         embassy_futures::join::join(
             async { mpsl.run().await },
             async {
-                let (runner_result, _) = embassy_futures::join::join(
+                let (runner_result, _, _) = embassy_futures::join::join3(
                     runner.run_with_handler(&central::CscEventHandler),
-                    embassy_futures::join::join(central::run(&stack), peripheral::run(&stack)),
+                    peripheral::run(&stack),
+                    central::run(&stack),
                 )
                 .await;
                 if let Err(e) = runner_result {
@@ -104,14 +105,17 @@ pub fn init(
     static SDC_MEM: StaticCell<sdc::Mem<8192>> = StaticCell::new();
     let sdc = sdc::Builder::new()
         .map_err(|_| Error::SdcInitFailed)?
-        .support_ext_scan()
-        .support_central()
-        .central_count(1)
-        .map_err(|_| Error::SdcInitFailed)?
         .support_adv()
-        .support_ext_adv()
         .support_peripheral()
         .peripheral_count(1)
+        .map_err(|_| Error::SdcInitFailed)?
+        .support_central()
+        .support_scan()
+        .central_count(1)
+        .map_err(|_| Error::SdcInitFailed)?
+        .scan_buffer_cfg(3)
+        .map_err(|_| Error::SdcInitFailed)?
+        .buffer_cfg(251, 251, 3, 3)
         .map_err(|_| Error::SdcInitFailed)?
         .build(sdc_p, rng_ref, mpsl, SDC_MEM.init(sdc::Mem::new()))
         .map_err(|_| Error::SdcInitFailed)?;

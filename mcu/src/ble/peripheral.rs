@@ -1,3 +1,4 @@
+use embassy_time::{Duration, with_timeout};
 use static_cell::StaticCell;
 use trouble_host::prelude::*;
 
@@ -15,13 +16,13 @@ struct BikeService {
     data: [u8; 24],
 }
 
-// Extended ADV data: flags + 128-bit service UUID + complete local name.
+// Legacy ADV data: flags + 128-bit service UUID + complete local name.
 // Type 0x07 = Complete list of 128-bit UUIDs (LE byte order).
-// UUID bece0001-ede4-4b59-8c60-1ee44d963a05 in LE: 05 3a 96 4d e4 1e 60 8c 4b 59 e4 ed 01 00 ce be
+// UUID bece0001-ede4-4b59-8c60-1ee44d963a05 in LE: 05 3a 96 4d e4 1e 60 8c 59 4b e4 ed 01 00 ce be
 const ADV_DATA: &[u8] = &[
     0x02, 0x01, 0x06, // Flags: LE General Discoverable, BR/EDR Not Supported
     0x11, 0x07, // length=17, type=Complete 128-bit UUIDs
-    0x05, 0x3A, 0x96, 0x4D, 0xE4, 0x1E, 0x60, 0x8C, 0x4B, 0x59, 0xE4, 0xED, 0x01, 0x00, 0xCE,
+    0x05, 0x3A, 0x96, 0x4D, 0xE4, 0x1E, 0x60, 0x8C, 0x59, 0x4B, 0xE4, 0xED, 0x01, 0x00, 0xCE,
     0xBE, 0x05, 0x09, b'V', b'o', b'o', b'p',
 ];
 
@@ -38,15 +39,17 @@ pub async fn run(stack: &Stack<'_, super::MyController, DefaultPacketPool>) {
     loop {
         log::info!("[BLE peripheral] Advertising...");
 
-        let sets = [AdvertisementSet {
-            params: AdvertisementParameters::default(),
-            data: Advertisement::ExtConnectableNonscannableUndirected { adv_data: ADV_DATA },
-            address: None,
-        }];
-        let mut handles = AdvertisementSet::handles(&sets);
-
         let mut peripheral = stack.peripheral();
-        let advertiser = match peripheral.advertise_ext(&sets, &mut handles).await {
+        let advertiser = match peripheral
+            .advertise(
+                &AdvertisementParameters::default(),
+                Advertisement::ConnectableScannableUndirected {
+                    adv_data: ADV_DATA,
+                    scan_data: &[],
+                },
+            )
+            .await
+        {
             Ok(a) => a,
             Err(e) => {
                 log::warn!("[BLE peripheral] advertise error: {:?}", e);
@@ -54,9 +57,14 @@ pub async fn run(stack: &Stack<'_, super::MyController, DefaultPacketPool>) {
             }
         };
 
-        let conn = match advertiser.accept().await {
-            Ok(c) => c,
-            Err(e) => {
+        log::info!("[BLE peripheral] Waiting for connection...");
+        let conn = match with_timeout(Duration::from_secs(10), advertiser.accept()).await {
+            Err(_) => {
+                log::warn!("[BLE peripheral] accept timed out — LE_Connection_Complete never arrived");
+                continue;
+            }
+            Ok(Ok(c)) => c,
+            Ok(Err(e)) => {
                 log::warn!("[BLE peripheral] accept error: {:?}", e);
                 continue;
             }

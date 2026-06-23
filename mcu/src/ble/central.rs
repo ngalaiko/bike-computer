@@ -1,6 +1,8 @@
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use embassy_sync::watch::Watch;
+
+use embassy_time::Duration;
 use trouble_host::prelude::*;
 
 use super::MyController;
@@ -66,7 +68,7 @@ fn ad_has_uuid16(data: &[u8], target: u16) -> bool {
 pub(super) struct CscEventHandler;
 
 impl EventHandler for CscEventHandler {
-    fn on_ext_adv_reports(&self, reports: LeExtAdvReportsIter<'_>) {
+    fn on_adv_reports(&self, reports: bt_hci::param::LeAdvReportsIter<'_>) {
         for report in reports.filter_map(|r| r.ok()) {
             if ad_has_uuid16(report.data, 0x1816) {
                 SENSOR_ADDR.signal(Address::new(report.addr_kind, report.addr));
@@ -84,10 +86,12 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
         let mut scanner = Scanner::new(central);
         let scan_config = ScanConfig {
             filter_accept_list: &[],
+            interval: Duration::from_millis(200),
+            window: Duration::from_millis(50),
             ..Default::default()
         };
 
-        let session = match scanner.scan_ext(&scan_config).await {
+        let session = match scanner.scan(&scan_config).await {
             Ok(s) => s,
             Err(e) => {
                 log::warn!("[BLE central] scan error: {:?}", e);
@@ -109,7 +113,7 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
             },
         };
 
-        let conn = match central.connect_ext(&connect_config).await {
+        let conn = match central.connect(&connect_config).await {
             Ok(c) => c,
             Err(e) => {
                 log::warn!("[BLE central] connect error: {:?}", e);

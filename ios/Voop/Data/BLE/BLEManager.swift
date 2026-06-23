@@ -12,6 +12,7 @@ final class BLEManager: NSObject {
 
     private var central: CBCentralManager?
     private var peripheral: MCUPeripheral?
+    private var connectingPeripheral: CBPeripheral?
 
     private var dataPointContinuation: AsyncStream<DataPoint>.Continuation?
     private(set) var dataPoints: AsyncStream<DataPoint>
@@ -36,7 +37,7 @@ final class BLEManager: NSObject {
         central = CBCentralManager(
             delegate: self,
             queue: .main,
-            options: [CBCentralManagerOptionRestoreIdentifierKey: "com.galaiko.voop.central"]
+            options: nil
         )
     }
 
@@ -61,16 +62,6 @@ extension BLEManager: CBCentralManagerDelegate {
         }
     }
 
-    nonisolated func centralManager(_: CBCentralManager, willRestoreState dict: [String: Any]) {
-        guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral],
-              let raw = peripherals.first else { return }
-        MainActor.assumeIsolated {
-            let mcu = MCUPeripheral(peripheral: raw)
-            self.peripheral = mcu
-            raw.delegate = mcu
-        }
-    }
-
     nonisolated func centralManager(
         _ central: CBCentralManager,
         didDiscover peripheral: CBPeripheral,
@@ -80,12 +71,14 @@ extension BLEManager: CBCentralManagerDelegate {
         MainActor.assumeIsolated {
             central.stopScan()
             connectionState = .connecting
+            connectingPeripheral = peripheral
             central.connect(peripheral, options: nil)
         }
     }
 
     nonisolated func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
         MainActor.assumeIsolated {
+            connectingPeripheral = nil
             let mcu = MCUPeripheral(peripheral: peripheral)
             mcu.onDataPoint = { [weak self] point in
                 self?.dataPointContinuation?.yield(point)
@@ -107,6 +100,7 @@ extension BLEManager: CBCentralManagerDelegate {
     ) {
         MainActor.assumeIsolated {
             self.peripheral = nil
+            self.connectingPeripheral = nil
             connectionState = .disconnected(error)
             startScan()
         }
@@ -118,6 +112,7 @@ extension BLEManager: CBCentralManagerDelegate {
         error: (any Error)?
     ) {
         MainActor.assumeIsolated {
+            connectingPeripheral = nil
             connectionState = .disconnected(error)
             startScan()
         }

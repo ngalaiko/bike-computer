@@ -75,7 +75,7 @@ rm -rf xcframework-headers
 description = "Build and install on the first available iOS device"
 depends = [":generate", ":xcframework"]
 run = """
-DEVICE=$(xcrun devicectl list devices 2>/dev/null | grep -v unavailable | grep connected | awk '{print $4}' | head -1)
+DEVICE=$(xcrun devicectl list devices 2>/dev/null | grep -E 'available [(]paired[)]|connected' | awk '{print $4}' | head -1)
 if [ -z "$DEVICE" ]; then echo "No device found"; exit 1; fi
 xcodebuild \
   -project Voop.xcodeproj \
