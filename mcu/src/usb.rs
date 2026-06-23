@@ -1,4 +1,3 @@
-use embassy_executor::Spawner;
 use embassy_nrf::usb::vbus_detect::HardwareVbusDetect;
 use embassy_nrf::usb::Driver;
 use embassy_nrf::{pac, peripherals, Peri};
@@ -8,6 +7,16 @@ use embassy_usb::UsbDevice;
 use static_cell::StaticCell;
 
 type MyDriver = Driver<'static, HardwareVbusDetect>;
+
+pub struct UsbRunner {
+    device: UsbDevice<'static, MyDriver>,
+}
+
+impl UsbRunner {
+    pub async fn run(mut self) {
+        self.device.run().await;
+    }
+}
 
 pub struct Usb {
     pub(crate) class: CdcAcmClass<'static, MyDriver>,
@@ -23,22 +32,7 @@ impl Usb {
     }
 }
 
-#[derive(Debug)]
-pub enum Error {
-    SpawnError(embassy_executor::SpawnError),
-}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::SpawnError(e) => write!(f, "failed to spawn USB task: {:?}", e),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
-
-pub fn init(spawner: Spawner, usbd: Peri<'static, peripherals::USBD>) -> Result<Usb, Error> {
+pub fn init(usbd: Peri<'static, peripherals::USBD>) -> (UsbRunner, Usb) {
     pac::CLOCK.tasks_hfclkstart().write_value(1);
     while pac::CLOCK.events_hfclkstarted().read() != 1 {}
 
@@ -71,13 +65,7 @@ pub fn init(spawner: Spawner, usbd: Peri<'static, peripherals::USBD>) -> Result<
         &mut control_buf[..],
     );
     let class = CdcAcmClass::new(&mut builder, state, 64);
-    let usb = builder.build();
+    let device = builder.build();
 
-    #[embassy_executor::task]
-    async fn usb_task(mut device: UsbDevice<'static, MyDriver>) {
-        device.run().await;
-    }
-
-    spawner.spawn(usb_task(usb).map_err(Error::SpawnError)?);
-    Ok(Usb { class })
+    (UsbRunner { device }, Usb { class })
 }

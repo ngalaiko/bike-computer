@@ -2,10 +2,16 @@
 "cargo:cargo-binutils" = "latest"
 "cargo:uf2conv" = "latest"
 
-[tasks.flash]
-description = "Build, convert to UF2, and flash to XIAO"
+[tasks.build]
+description = "Build the firmware"
 run = """
 cargo build --release
 cargo objcopy --release -- -O binary target/firmware.bin
+"""
+
+[tasks.flash]
+description = "Build, convert to UF2, and flash to XIAO"
+depends = ["build"]
+run = """
 uv run tools/uf2conv.py target/firmware.bin --family 0xADA52840 --base 0x27000 --output target/firmware.uf2
 """

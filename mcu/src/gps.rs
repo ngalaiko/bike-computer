@@ -17,6 +17,12 @@ pub struct Location {
     pub fix_quality: FixQuality,
 }
 
+// Sent on each valid fix.
+pub static LOCATION: Watch<CriticalSectionRawMutex, Result<Location, Error>, 1> = Watch::new();
+
+// Unix timestamp — sent on every valid RMC sentence with date+time.
+pub static TIME: Watch<CriticalSectionRawMutex, Result<u32, Error>, 1> = Watch::new();
+
 #[derive(Clone, Debug)]
 pub enum Error {
     SpawnFailed,
@@ -32,11 +38,81 @@ impl core::fmt::Display for Error {
 
 impl core::error::Error for Error {}
 
-// Sent on each valid fix. Fix quality affects precision.
-pub static LOCATION: Watch<CriticalSectionRawMutex, Result<Location, Error>, 1> = Watch::new();
+pub struct Gps {
+    uarte0: Peri<'static, peripherals::UARTE0>,
+    txd: Peri<'static, peripherals::P1_11>,
+    rxd: Peri<'static, peripherals::P1_12>,
+    timer1: Peri<'static, peripherals::TIMER1>,
+    ppi_ch0: Peri<'static, peripherals::PPI_CH0>,
+    ppi_ch1: Peri<'static, peripherals::PPI_CH1>,
+}
 
-// Unix timestamp — sent on every valid RMC sentence with date+time.
-pub static TIME: Watch<CriticalSectionRawMutex, Result<u32, Error>, 1> = Watch::new();
+pub fn init(
+    uarte0: Peri<'static, peripherals::UARTE0>,
+    txd: Peri<'static, peripherals::P1_11>,
+    rxd: Peri<'static, peripherals::P1_12>,
+    timer1: Peri<'static, peripherals::TIMER1>,
+    ppi_ch0: Peri<'static, peripherals::PPI_CH0>,
+    ppi_ch1: Peri<'static, peripherals::PPI_CH1>,
+) -> Gps {
+    Gps { uarte0, txd, rxd, timer1, ppi_ch0, ppi_ch1 }
+}
+
+impl Gps {
+    pub async fn run(self) {
+        let mut config = uarte::Config::default();
+        config.baudrate = uarte::Baudrate::BAUD9600;
+        let uarte = Uarte::new(self.uarte0, self.rxd, self.txd, crate::Irqs, config);
+        let (_tx, mut rx) = uarte.split_with_idle(self.timer1, self.ppi_ch0, self.ppi_ch1);
+
+        let location_tx = LOCATION.sender();
+        let time_tx = TIME.sender();
+
+        let mut buf = [0u8; 1024];
+        loop {
+            match rx.read_until_idle(&mut buf).await {
+                Ok(n) => {
+                    for line in buf[..n].split(|&b| b == b'\n') {
+                        if line.is_empty() {
+                            continue;
+                        }
+                        match nmea::parse_bytes(line) {
+                            Ok(nmea::ParseResult::RMC(rmc)) => {
+                                let fix_quality = match rmc.status_of_fix {
+                                    nmea::sentences::rmc::RmcStatusOfFix::Autonomous => {
+                                        Some(FixQuality::Autonomous)
+                                    }
+                                    nmea::sentences::rmc::RmcStatusOfFix::Differential => {
+                                        Some(FixQuality::Differential)
+                                    }
+                                    _ => None,
+                                };
+                                if let (Some(fix_quality), Some(lat), Some(lon)) =
+                                    (fix_quality, rmc.lat, rmc.lon)
+                                {
+                                    location_tx.send(Ok(Location { lat, lon, fix_quality }));
+                                }
+                                if let (Some(date), Some(time)) = (rmc.fix_date, rmc.fix_time) {
+                                    let epoch = to_unix_epoch(
+                                        date.year(),
+                                        date.month() as u8,
+                                        date.day() as u8,
+                                        time.hour() as u8,
+                                        time.minute() as u8,
+                                        time.second() as u8,
+                                    );
+                                    time_tx.send(Ok(epoch));
+                                }
+                            }
+                            Ok(_) | Err(_) => {}
+                        }
+                    }
+                }
+                Err(e) => log::debug!("[GPS] read error: {:?}", e),
+            }
+        }
+    }
+}
 
 // Howard Hinnant's civil-to-days algorithm → Unix epoch.
 fn to_unix_epoch(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8) -> u32 {
@@ -48,84 +124,4 @@ fn to_unix_epoch(year: i32, month: u8, day: u8, hour: u8, minute: u8, second: u8
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146097 + doe as i32 - 719468;
     days as u32 * 86400 + hour as u32 * 3600 + minute as u32 * 60 + second as u32
-}
-
-#[embassy_executor::task]
-async fn task(
-    uarte0: Peri<'static, peripherals::UARTE0>,
-    txd: Peri<'static, peripherals::P1_11>,
-    rxd: Peri<'static, peripherals::P1_12>,
-    timer1: Peri<'static, peripherals::TIMER1>,
-    ppi_ch0: Peri<'static, peripherals::PPI_CH0>,
-    ppi_ch1: Peri<'static, peripherals::PPI_CH1>,
-) {
-    let mut config = uarte::Config::default();
-    config.baudrate = uarte::Baudrate::BAUD9600;
-    let uarte = Uarte::new(uarte0, rxd, txd, crate::Irqs, config);
-    let (_tx, mut rx) = uarte.split_with_idle(timer1, ppi_ch0, ppi_ch1);
-
-    let location_tx = LOCATION.sender();
-    let time_tx = TIME.sender();
-
-    let mut buf = [0u8; 1024];
-    loop {
-        match rx.read_until_idle(&mut buf).await {
-            Ok(n) => {
-                for line in buf[..n].split(|&b| b == b'\n') {
-                    if line.is_empty() {
-                        continue;
-                    }
-                    match nmea::parse_bytes(line) {
-                        Ok(nmea::ParseResult::RMC(rmc)) => {
-                            let fix_quality = match rmc.status_of_fix {
-                                nmea::sentences::rmc::RmcStatusOfFix::Autonomous => {
-                                    Some(FixQuality::Autonomous)
-                                }
-                                nmea::sentences::rmc::RmcStatusOfFix::Differential => {
-                                    Some(FixQuality::Differential)
-                                }
-                                _ => None,
-                            };
-                            if let (Some(fix_quality), Some(lat), Some(lon)) =
-                                (fix_quality, rmc.lat, rmc.lon)
-                            {
-                                location_tx.send(Ok(Location {
-                                    lat,
-                                    lon,
-                                    fix_quality,
-                                }));
-                            }
-                            if let (Some(date), Some(time)) = (rmc.fix_date, rmc.fix_time) {
-                                let epoch = to_unix_epoch(
-                                    date.year(),
-                                    date.month() as u8,
-                                    date.day() as u8,
-                                    time.hour() as u8,
-                                    time.minute() as u8,
-                                    time.second() as u8,
-                                );
-                                time_tx.send(Ok(epoch));
-                            }
-                        }
-                        Ok(_) | Err(_) => {}
-                    }
-                }
-            }
-            Err(e) => log::debug!("[GPS] read error: {:?}", e),
-        }
-    }
-}
-
-pub fn init(
-    spawner: embassy_executor::Spawner,
-    uarte0: Peri<'static, peripherals::UARTE0>,
-    txd: Peri<'static, peripherals::P1_11>,
-    rxd: Peri<'static, peripherals::P1_12>,
-    timer1: Peri<'static, peripherals::TIMER1>,
-    ppi_ch0: Peri<'static, peripherals::PPI_CH0>,
-    ppi_ch1: Peri<'static, peripherals::PPI_CH1>,
-) -> Result<(), Error> {
-    spawner
-        .spawn(task(uarte0, txd, rxd, timer1, ppi_ch0, ppi_ch1).map_err(|_| Error::SpawnFailed)?);
-    Ok(())
 }

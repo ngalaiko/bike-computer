@@ -1,4 +1,3 @@
-use embassy_executor::Spawner;
 use embassy_futures::select::{select4, Either4};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -103,28 +102,7 @@ pub async fn pop_newest() -> Option<DataPoint> {
     STORE.lock().await.pop_newest()
 }
 
-#[derive(Debug)]
-pub enum Error {
-    SpawnFailed,
-}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::SpawnFailed => write!(f, "failed to spawn store task"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
-
-pub fn init(spawner: Spawner) -> Result<(), Error> {
-    spawner.spawn(task().map_err(|_| Error::SpawnFailed)?);
-    Ok(())
-}
-
-#[embassy_executor::task]
-async fn task() {
+pub async fn run() {
     let Some(mut crank_rx) = crate::ble::CRANK_REVS.receiver() else {
         log::error!("[Store] CRANK_REVS: no free receiver slot");
         return;

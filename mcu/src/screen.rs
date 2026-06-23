@@ -28,21 +28,6 @@ impl core::fmt::Display for InternalError {
     }
 }
 
-#[derive(Debug)]
-pub enum Error {
-    SpawnFailed,
-}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::SpawnFailed => write!(f, "failed to spawn screen task"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
-
 type Display = Ssd1306<
     I2CInterface<twim::Twim<'static>>,
     DisplaySize128x64,
@@ -61,7 +46,6 @@ fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), Interna
         .clear(BinaryColor::Off)
         .map_err(|_| InternalError::RenderError)?;
 
-    // Line 1: GPS fix quality + coordinates
     let mut line1: String<32> = String::new();
     match point.and_then(|p| p.lat.zip(p.lon).map(|(lat, lon)| (lat, lon, p.fix_quality))) {
         None => write!(line1, "GPS:---"),
@@ -84,7 +68,6 @@ fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), Interna
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
-    // Line 2: crank revolutions
     let mut line2: String<16> = String::new();
     match point.and_then(|p| p.crank_revs) {
         None => write!(line2, "CRK: ---"),
@@ -95,7 +78,6 @@ fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), Interna
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
-    // Line 3: sensor battery
     let mut line3: String<16> = String::new();
     match point.and_then(|p| p.sensor_battery) {
         None => write!(line3, "BAT: ---"),
@@ -109,50 +91,52 @@ fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), Interna
     display.flush().map_err(|_| InternalError::RenderError)
 }
 
-pub fn init(
-    spawner: embassy_executor::Spawner,
+pub struct Screen {
     i2c: Peri<'static, peripherals::TWISPI0>,
     sda: Peri<'static, peripherals::P0_04>,
     scl: Peri<'static, peripherals::P0_05>,
-) -> Result<(), Error> {
-    spawner.spawn(task(i2c, sda, scl).map_err(|_| Error::SpawnFailed)?);
-    Ok(())
 }
 
-#[embassy_executor::task]
-async fn task(
+pub fn init(
     i2c: Peri<'static, peripherals::TWISPI0>,
     sda: Peri<'static, peripherals::P0_04>,
     scl: Peri<'static, peripherals::P0_05>,
-) {
-    static TX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
-    let tx_buf = TX_BUF.init([0u8; 64]);
-    let i2c = twim::Twim::new(i2c, crate::Irqs, sda, scl, twim::Config::default(), tx_buf);
-    let interface = I2CDisplayInterface::new(i2c);
-    let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
-        .into_buffered_graphics_mode();
+) -> Screen {
+    Screen { i2c, sda, scl }
+}
 
-    if let Err(e) = display.init().map_err(InternalError::InitError) {
-        log::error!("[Screen] {}", e);
-        return;
-    }
-    display.clear(BinaryColor::Off).ok();
-    display.flush().ok();
+impl Screen {
+    pub async fn run(self) {
+        static TX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+        let tx_buf = TX_BUF.init([0u8; 64]);
+        let i2c =
+            twim::Twim::new(self.i2c, crate::Irqs, self.sda, self.scl, twim::Config::default(), tx_buf);
+        let interface = I2CDisplayInterface::new(i2c);
+        let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
+            .into_buffered_graphics_mode();
 
-    let Some(mut updated_rx) = crate::store::UPDATED.receiver() else {
-        log::error!("[Screen] UPDATED watch: no free receiver slot");
-        return;
-    };
+        if let Err(e) = display.init().map_err(InternalError::InitError) {
+            log::error!("[Screen] {}", e);
+            return;
+        }
+        display.clear(BinaryColor::Off).ok();
+        display.flush().ok();
 
-    if let Err(e) = render(&mut display, None) {
-        log::warn!("[Screen] {}", e);
-    }
+        let Some(mut updated_rx) = crate::store::UPDATED.receiver() else {
+            log::error!("[Screen] UPDATED watch: no free receiver slot");
+            return;
+        };
 
-    loop {
-        updated_rx.changed().await;
-        let point = crate::store::peek_latest().await;
-        if let Err(e) = render(&mut display, point) {
+        if let Err(e) = render(&mut display, None) {
             log::warn!("[Screen] {}", e);
+        }
+
+        loop {
+            updated_rx.changed().await;
+            let point = crate::store::peek_latest().await;
+            if let Err(e) = render(&mut display, point) {
+                log::warn!("[Screen] {}", e);
+            }
         }
     }
 }
