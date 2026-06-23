@@ -1,8 +1,9 @@
 [workspace]
-members = ["mcu", "protocol"]
+members = ["mcu", "protocol", "protocol-ffi"]
 default-members = ["mcu"]
 resolver = "2"
 
 [profile.release]
 opt-level = "s"
 panic = "abort"
+

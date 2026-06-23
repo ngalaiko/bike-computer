@@ -1,0 +1,19 @@
+[package]
+name = "voop-protocol-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+uniffi-cli = ["dep:uniffi"]
+
+[lib]
+name = "voop_protocol"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+voop-protocol = { path = "../protocol", features = ["uniffi"] }
+uniffi = { version = "0.29", optional = true, features = ["cli"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+required-features = ["uniffi-cli"]

@@ -3,6 +3,17 @@
 #[cfg(feature = "uniffi")]
 uniffi::setup_scaffolding!();
 
+pub const SERVICE_UUID: &str = "bece0001-ede4-4b59-8c60-1ee44d963a05";
+pub const DATA_CHAR_UUID: &str = "bece0002-ede4-4b59-8c60-1ee44d963a05";
+
+#[cfg(feature = "uniffi")]
+#[uniffi::export]
+fn service_uuid() -> String { SERVICE_UUID.to_string() }
+
+#[cfg(feature = "uniffi")]
+#[uniffi::export]
+fn data_char_uuid() -> String { DATA_CHAR_UUID.to_string() }
+
 /// GPS fix quality — used on the MCU to decide whether to set `differential_fix`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FixQuality {
@@ -17,14 +28,21 @@ pub enum FixQuality {
 pub enum McuBatteryState {
     Discharging = 0,
     Charging = 1,
-    /// Plugged in and fully charged.
-    Powered = 2,
+}
+
+/// MCU battery level and charging state.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
+pub struct McuBattery {
+    /// Battery percentage 0–100.
+    pub percent: u8,
+    pub state: McuBatteryState,
 }
 
 /// A single telemetry sample streamed over BLE.
 ///
-/// Wire format (little-endian, variable length, max 23 bytes):
-///   [version u8][monotonic_ms u32][flags u8][optional fields in flag-bit order]
+/// Wire format (little-endian, variable length, max 21 bytes):
+///   [monotonic_ms u32][flags u8][optional fields in flag-bit order]
 ///
 /// Flags:
 ///   0x01 = crank_revs       : u16
@@ -32,12 +50,10 @@ pub enum McuBatteryState {
 ///   0x04 = gps_unix_time    : u32
 ///   0x08 = sensor_battery   : u8
 ///   0x10 = differential_fix : (no data, flag only)
-///   0x20 = mcu_battery      : u8
-///   0x40 = mcu_battery_state: u8  (McuBatteryState repr)
+///   0x20 = mcu_battery      : u8 percent + u8 state (McuBatteryState repr, always set)
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DataPoint {
-    pub version: u8,
     pub monotonic_ms: u32,
     pub crank_revs: Option<u16>,
     /// Latitude in microdegrees (÷ 1_000_000 for degrees).
@@ -48,12 +64,8 @@ pub struct DataPoint {
     pub gps_unix_time: Option<u32>,
     /// Garmin cadence sensor battery percent.
     pub sensor_battery: Option<u8>,
-    /// MCU battery percent.
-    pub mcu_battery: Option<u8>,
-    pub mcu_battery_state: Option<McuBatteryState>,
+    pub mcu_battery: McuBattery,
 }
-
-pub const PROTOCOL_VERSION: u8 = 1;
 
 const FLAG_CRANK: u8 = 0x01;
 const FLAG_LAT_LON: u8 = 0x02;
@@ -61,12 +73,10 @@ const FLAG_GPS_TIME: u8 = 0x04;
 const FLAG_SENSOR_BATTERY: u8 = 0x08;
 const FLAG_DIFF_FIX: u8 = 0x10;
 const FLAG_MCU_BATTERY: u8 = 0x20;
-const FLAG_MCU_BATTERY_STATE: u8 = 0x40;
 
 impl DataPoint {
     pub fn pack(&self) -> heapless::Vec<u8, 24> {
         let mut buf: heapless::Vec<u8, 24> = heapless::Vec::new();
-        let _ = buf.push(self.version);
         let _ = buf.extend_from_slice(&self.monotonic_ms.to_le_bytes());
 
         let mut flags: u8 = 0;
@@ -75,8 +85,7 @@ impl DataPoint {
         if self.gps_unix_time.is_some() { flags |= FLAG_GPS_TIME; }
         if self.sensor_battery.is_some() { flags |= FLAG_SENSOR_BATTERY; }
         if self.differential_fix { flags |= FLAG_DIFF_FIX; }
-        if self.mcu_battery.is_some() { flags |= FLAG_MCU_BATTERY; }
-        if self.mcu_battery_state.is_some() { flags |= FLAG_MCU_BATTERY_STATE; }
+        flags |= FLAG_MCU_BATTERY;
         let _ = buf.push(flags);
 
         if let Some(revs) = self.crank_revs {
@@ -92,26 +101,18 @@ impl DataPoint {
         if let Some(bat) = self.sensor_battery {
             let _ = buf.push(bat);
         }
-        if let Some(bat) = self.mcu_battery {
-            let _ = buf.push(bat);
-        }
-        if let Some(state) = self.mcu_battery_state {
-            let _ = buf.push(state as u8);
-        }
+        let _ = buf.push(self.mcu_battery.percent);
+        let _ = buf.push(self.mcu_battery.state as u8);
         buf
     }
 
     pub fn unpack(bytes: &[u8]) -> Option<Self> {
-        if bytes.len() < 6 {
+        if bytes.len() < 5 {
             return None;
         }
-        let version = bytes[0];
-        if version != PROTOCOL_VERSION {
-            return None;
-        }
-        let monotonic_ms = u32::from_le_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]);
-        let flags = bytes[5];
-        let mut offset = 6;
+        let monotonic_ms = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        let flags = bytes[4];
+        let mut offset = 5;
 
         let crank_revs = if flags & FLAG_CRANK != 0 {
             if offset + 2 > bytes.len() { return None; }
@@ -152,30 +153,17 @@ impl DataPoint {
 
         let differential_fix = flags & FLAG_DIFF_FIX != 0;
 
-        let mcu_battery = if flags & FLAG_MCU_BATTERY != 0 {
-            if offset >= bytes.len() { return None; }
-            let v = bytes[offset];
-            offset += 1;
-            Some(v)
-        } else {
-            None
+        if flags & FLAG_MCU_BATTERY == 0 { return None; }
+        if offset + 2 > bytes.len() { return None; }
+        let percent = bytes[offset];
+        let state = match bytes[offset + 1] {
+            0 => McuBatteryState::Discharging,
+            1 => McuBatteryState::Charging,
+            _ => return None,
         };
-
-        let mcu_battery_state = if flags & FLAG_MCU_BATTERY_STATE != 0 {
-            if offset >= bytes.len() { return None; }
-            let state = match bytes[offset] {
-                0 => McuBatteryState::Discharging,
-                1 => McuBatteryState::Charging,
-                2 => McuBatteryState::Powered,
-                _ => return None,
-            };
-            Some(state)
-        } else {
-            None
-        };
+        let mcu_battery = McuBattery { percent, state };
 
         Some(DataPoint {
-            version,
             monotonic_ms,
             crank_revs,
             lat_microdeg,
@@ -184,7 +172,6 @@ impl DataPoint {
             gps_unix_time,
             sensor_battery,
             mcu_battery,
-            mcu_battery_state,
         })
     }
 }

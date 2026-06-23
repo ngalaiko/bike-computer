@@ -6,7 +6,6 @@ edition = "2021"
 [features]
 std = []
 uniffi = ["dep:uniffi", "std"]
-uniffi-cli = ["uniffi", "uniffi/cli"]
 
 [dependencies]
 heapless = "0.8"
@@ -14,7 +13,3 @@ uniffi = { version = "0.29", optional = true }
 
 [lib]
 crate-type = ["lib"]
-
-[[bin]]
-name = "uniffi-bindgen"
-required-features = ["uniffi-cli"]

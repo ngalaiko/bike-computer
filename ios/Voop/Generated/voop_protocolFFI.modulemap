@@ -1,0 +1,7 @@
+module voop_protocolFFI {
+    header "voop_protocolFFI.h"
+    export *
+    use "Darwin"
+    use "_Builtin_stdbool"
+    use "_Builtin_stdint"
+}

@@ -1,8 +1,8 @@
 @preconcurrency import CoreBluetooth
 import Foundation
 
-private nonisolated(unsafe) let mcuServiceUUID = CBUUID(string: "bece0001-ede4-4b59-8c60-1ee44d963a05")
-private nonisolated(unsafe) let dataTransferCharUUID = CBUUID(string: "bece0002-ede4-4b59-8c60-1ee44d963a05")
+private nonisolated(unsafe) let mcuServiceUUID = CBUUID(string: serviceUuid())
+private nonisolated(unsafe) let dataTransferCharUUID = CBUUID(string: dataCharUuid())
 
 final class MCUPeripheral: NSObject, CBPeripheralDelegate, @unchecked Sendable {
     var onDataPoint: (@MainActor (DataPoint) -> Void)?

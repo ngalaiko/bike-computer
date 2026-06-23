@@ -6,9 +6,8 @@ DerivedData/
 xcuserdata/
 *.xcworkspace/xcuserdata/
 
-# Generated protocol bindings (run `mise run ios:protocol` to regenerate)
+# Compiled xcframework (build artifact — run `mise run ios:xcframework` to rebuild)
 VoopProtocol.xcframework/
-Voop/Generated/
 
 # CocoaPods / SPM
 Pods/

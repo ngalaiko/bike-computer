@@ -1,8 +1,2 @@
 # Rust build output (workspace target at root)
 target/
-
-# UniFFI-generated sources and headers (run `mise run protocol:bindgen` to regenerate)
-protocol/generated/
-
-# Claude Code local settings
-.claude/settings.local.json

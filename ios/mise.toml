@@ -2,10 +2,14 @@
 swiftlint = "0.63.3"
 swiftformat = "0.61.1"
 "gem:xcpretty" = "latest"
-"gem:xcodeproj" = "latest"
+"gem:xcodeproj" = "1.27.0"
+
+[env]
+GEM_PATH = "{{env.HOME}}/.local/share/mise/installs/gem-xcodeproj/1.27.0/libexec"
 
 [tasks.build]
 description = "Build the app for iPhone 17 simulator"
+depends = [":setup-protocol"]
 run = """
 xcodebuild \
   -project Voop.xcodeproj \
@@ -18,7 +22,7 @@ xcodebuild \
 
 [tasks.run]
 description = "Launch the app in the iPhone 17 simulator"
-depends = ["build"]
+depends = [":build"]
 run = """
 xcrun simctl boot "iPhone 17" 2>/dev/null || true
 open -a Simulator
@@ -27,23 +31,48 @@ xcrun simctl install "iPhone 17" .build/Build/Products/Debug-iphonesimulator/Voo
 xcrun simctl launch --console "iPhone 17" com.galaiko.voop
 """
 
-[tasks.copy-protocol]
-description = "Copy generated VoopProtocol.swift from the protocol crate into the Xcode project"
-dir = "{{config_root}}/.."
-depends = ["protocol:bindgen"]
+[tasks.bindgen]
+description = "Generate Swift bindings and C headers from the macOS dylib"
+depends = ["//protocol-ffi:build"]
+sources = ["../target/release/libvoop_protocol.dylib"]
+outputs = ["Voop/Generated/voop_protocol.swift", "Voop/Generated/voop_protocolFFI.h"]
 run = """
-mkdir -p ios/Voop/Generated
-cp protocol/generated/VoopProtocol.swift ios/Voop/Generated/VoopProtocol.swift
+mkdir -p Voop/Generated
+cargo run -p voop-protocol-ffi --features uniffi-cli --bin uniffi-bindgen -- \
+  generate \
+  --library ../target/release/libvoop_protocol.dylib \
+  --language swift \
+  --out-dir Voop/Generated/
+"""
+
+[tasks.xcframework]
+description = "Bundle device + simulator staticlibs into an XCFramework"
+depends = [":bindgen"]
+sources = [
+  "../target/aarch64-apple-ios/release/libvoop_protocol.a",
+  "../target/aarch64-apple-ios-sim/release/libvoop_protocol.a",
+  "Voop/Generated/voop_protocolFFI.h",
+]
+outputs = ["VoopProtocol.xcframework/Info.plist"]
+run = """
+mkdir -p xcframework-headers
+cp Voop/Generated/voop_protocolFFI.h xcframework-headers/
+cp Voop/Generated/voop_protocolFFI.modulemap xcframework-headers/module.modulemap
+
+rm -rf VoopProtocol.xcframework
+xcodebuild -create-xcframework \
+  -library ../target/aarch64-apple-ios/release/libvoop_protocol.a \
+  -headers xcframework-headers/ \
+  -library ../target/aarch64-apple-ios-sim/release/libvoop_protocol.a \
+  -headers xcframework-headers/ \
+  -output VoopProtocol.xcframework
+rm -rf xcframework-headers
 """
 
 [tasks.setup-protocol]
 description = "Wire VoopProtocol.xcframework and VoopProtocol.swift into Voop.xcodeproj (idempotent)"
-depends = ["protocol:xcframework", "ios:copy-protocol"]
+depends = [":xcframework"]
 run = "ruby scripts/setup_protocol.rb"
-
-[tasks.protocol]
-description = "Build protocol XCFramework, generate Swift bindings, and update Voop.xcodeproj"
-depends = ["ios:setup-protocol"]
 
 [tasks.lint]
 description = "Lint Swift sources with SwiftLint"
@@ -52,4 +81,3 @@ run = "swiftlint lint --strict Voop"
 [tasks.format]
 description = "Format Swift sources with SwiftFormat"
 run = "swiftformat Voop"
-

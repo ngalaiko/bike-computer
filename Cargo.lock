@@ -2170,6 +2170,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "voop-protocol-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "voop-protocol",
+]
+
+[[package]]
 name = "wasm-bindgen"
 version = "0.2.125"
 source = "registry+https://github.com/rust-lang/crates.io-index"

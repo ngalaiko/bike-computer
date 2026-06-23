@@ -26,7 +26,7 @@ unless target.frameworks_build_phase.files.any? { |bf| bf.file_ref&.path == xcfw
 end
 
 # Add VoopProtocol.swift to Compile Sources
-swift = 'VoopProtocol.swift'
+swift = 'voop_protocol.swift'
 unless target.source_build_phase.files.any? { |bf| bf.file_ref&.path == swift }
   voop_group = project.main_group.find_subpath('Voop', false)
   abort "Could not find 'Voop' group in project" unless voop_group

@@ -6,7 +6,7 @@ use embassy_time::Instant;
 use heapless::Deque;
 
 use crate::gps::FixQuality;
-pub use voop_protocol::DataPoint;
+pub use voop_protocol::{DataPoint, McuBattery, McuBatteryState};
 
 const CAPACITY: usize = 4096;
 
@@ -83,7 +83,6 @@ pub async fn run() {
         {
             Either4::First(Ok(revs)) => {
                 let point = DataPoint {
-                    version: voop_protocol::PROTOCOL_VERSION,
                     monotonic_ms: Instant::now().as_millis() as u32,
                     crank_revs: Some(revs),
                     lat_microdeg: current_lat,
@@ -91,8 +90,7 @@ pub async fn run() {
                     differential_fix: matches!(current_fix_quality, Some(FixQuality::Differential)),
                     gps_unix_time: current_gps_time,
                     sensor_battery: current_battery,
-                    mcu_battery: None,
-                    mcu_battery_state: None,
+                    mcu_battery: McuBattery { percent: 100, state: McuBatteryState::Charging },
                 };
                 STORE.lock().await.push(point);
                 UPDATED.sender().send(());
