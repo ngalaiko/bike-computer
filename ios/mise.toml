@@ -2,6 +2,7 @@
 swiftlint = "0.63.3"
 swiftformat = "0.61.1"
 "gem:xcpretty" = "latest"
+"gem:xcodeproj" = "latest"
 
 [tasks.build]
 description = "Build the app for iPhone 17 simulator"
@@ -25,6 +26,24 @@ xcrun simctl bootstatus "iPhone 17" -b
 xcrun simctl install "iPhone 17" .build/Build/Products/Debug-iphonesimulator/Voop.app
 xcrun simctl launch --console "iPhone 17" com.galaiko.voop
 """
+
+[tasks.copy-protocol]
+description = "Copy generated VoopProtocol.swift from the protocol crate into the Xcode project"
+dir = "{{config_root}}/.."
+depends = ["protocol:bindgen"]
+run = """
+mkdir -p ios/Voop/Generated
+cp protocol/generated/VoopProtocol.swift ios/Voop/Generated/VoopProtocol.swift
+"""
+
+[tasks.setup-protocol]
+description = "Wire VoopProtocol.xcframework and VoopProtocol.swift into Voop.xcodeproj (idempotent)"
+depends = ["protocol:xcframework", "ios:copy-protocol"]
+run = "ruby scripts/setup_protocol.rb"
+
+[tasks.protocol]
+description = "Build protocol XCFramework, generate Swift bindings, and update Voop.xcodeproj"
+depends = ["ios:setup-protocol"]
 
 [tasks.lint]
 description = "Lint Swift sources with SwiftLint"

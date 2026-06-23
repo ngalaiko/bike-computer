@@ -10,7 +10,7 @@ pub struct BikeServer {
 
 #[gatt_service(uuid = "bece0001-ede4-4b59-8c60-1ee44d963a05")]
 struct BikeService {
-    // Packed DataPoint wire format, max 24 bytes. See store::DataPoint::pack().
+    // Packed DataPoint wire format, max 24 bytes. See voop_protocol::DataPoint::pack().
     #[characteristic(uuid = "bece0002-ede4-4b59-8c60-1ee44d963a05", notify)]
     data: [u8; 24],
 }

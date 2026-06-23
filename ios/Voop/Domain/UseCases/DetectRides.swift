@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 
 enum DetectRides {
@@ -30,8 +31,15 @@ enum DetectRides {
             let timestamped = segment.map { p in
                 TimestampedPoint(
                     date: anchor.date(forMonotonicMs: p.monotonicMs),
-                    coordinate: p.location.map { .init(latitude: $0.lat, longitude: $0.lon) },
-                    cumulativeCrankRevs: p.cumulativeCrankRevs
+                    coordinate: p.latMicrodeg.flatMap { lat in
+                        p.lonMicrodeg.map { lon in
+                            CLLocationCoordinate2D(
+                                latitude: Double(lat) / 1_000_000.0,
+                                longitude: Double(lon) / 1_000_000.0
+                            )
+                        }
+                    },
+                    cumulativeCrankRevs: p.crankRevs ?? 0
                 )
             }
             let distance = CalculateMetrics.totalDistance(points: timestamped)

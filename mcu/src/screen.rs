@@ -10,7 +10,6 @@ use heapless::String;
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 use static_cell::StaticCell;
 
-use crate::gps::FixQuality;
 use crate::store::DataPoint;
 
 #[derive(Debug)]
@@ -47,13 +46,10 @@ fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), Interna
         .map_err(|_| InternalError::RenderError)?;
 
     let mut line1: String<32> = String::new();
-    match point.and_then(|p| p.lat.zip(p.lon).map(|(lat, lon)| (lat, lon, p.fix_quality))) {
+    match point.and_then(|p| p.lat_microdeg.zip(p.lon_microdeg).map(|(lat, lon)| (lat, lon, p.differential_fix))) {
         None => write!(line1, "GPS:---"),
-        Some((lat, lon, fq)) => {
-            let q = match fq {
-                Some(FixQuality::Differential) => "DIF",
-                _ => "AUT",
-            };
+        Some((lat, lon, diff)) => {
+            let q = if diff { "DIF" } else { "AUT" };
             write!(
                 line1,
                 "GPS:{} {:.2}/{:.2}",

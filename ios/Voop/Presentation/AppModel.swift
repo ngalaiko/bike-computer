@@ -20,8 +20,7 @@ final class AppModel {
     func startReceiving() async {
         for await point in ble.dataPoints {
             pendingPoints.append(point)
-            if gpsAnchor == nil, let loc = point.location {
-                _ = loc
+            if gpsAnchor == nil, point.latMicrodeg != nil {
                 gpsAnchor = GpsAnchor(monotonicMs: point.monotonicMs, wallClockDate: Date())
             }
         }

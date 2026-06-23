@@ -4,4 +4,5 @@ monorepo_root = true
 config_roots = [
     "mcu",
     "ios",
+    "protocol",
 ]

@@ -6,61 +6,7 @@ use embassy_time::Instant;
 use heapless::Deque;
 
 use crate::gps::FixQuality;
-
-#[derive(Clone, Copy, Debug)]
-pub struct DataPoint {
-    pub monotonic_ms: u32,
-    pub crank_revs: Option<u16>,
-    pub lat: Option<i32>,           // microdegrees (divide by 1_000_000 for degrees)
-    pub lon: Option<i32>,           // microdegrees
-    pub fix_quality: Option<FixQuality>,
-    pub gps_unix_time: Option<u32>, // seconds since epoch; set only when GPS provides it
-    pub sensor_battery: Option<u8>, // Garmin battery %
-}
-
-impl DataPoint {
-    /// Pack into wire format for BLE notification (max 24 bytes).
-    ///
-    /// Layout: [monotonic_ms u64 LE][flags u8][crank_revs u16 LE?][lat i32 LE?][lon i32 LE?][gps_unix_time u32 LE?][sensor_battery u8?]
-    /// flags: 0x01=crank, 0x02=lat+lon, 0x04=gps_time, 0x08=battery, 0x10=differential_fix
-    pub fn pack(&self) -> heapless::Vec<u8, 24> {
-        let mut buf: heapless::Vec<u8, 24> = heapless::Vec::new();
-        let _ = buf.extend_from_slice(&self.monotonic_ms.to_le_bytes());
-
-        let mut flags: u8 = 0;
-        if self.crank_revs.is_some() {
-            flags |= 0x01;
-        }
-        if self.lat.is_some() {
-            flags |= 0x02;
-        }
-        if self.gps_unix_time.is_some() {
-            flags |= 0x04;
-        }
-        if self.sensor_battery.is_some() {
-            flags |= 0x08;
-        }
-        if matches!(self.fix_quality, Some(FixQuality::Differential)) {
-            flags |= 0x10;
-        }
-        let _ = buf.push(flags);
-
-        if let Some(revs) = self.crank_revs {
-            let _ = buf.extend_from_slice(&revs.to_le_bytes());
-        }
-        if let Some(lat) = self.lat {
-            let _ = buf.extend_from_slice(&lat.to_le_bytes());
-            let _ = buf.extend_from_slice(&self.lon.unwrap_or(0).to_le_bytes());
-        }
-        if let Some(t) = self.gps_unix_time {
-            let _ = buf.extend_from_slice(&t.to_le_bytes());
-        }
-        if let Some(bat) = self.sensor_battery {
-            let _ = buf.push(bat);
-        }
-        buf
-    }
-}
+pub use voop_protocol::DataPoint;
 
 const CAPACITY: usize = 4096;
 
@@ -137,13 +83,16 @@ pub async fn run() {
         {
             Either4::First(Ok(revs)) => {
                 let point = DataPoint {
+                    version: voop_protocol::PROTOCOL_VERSION,
                     monotonic_ms: Instant::now().as_millis() as u32,
                     crank_revs: Some(revs),
-                    lat: current_lat,
-                    lon: current_lon,
-                    fix_quality: current_fix_quality,
+                    lat_microdeg: current_lat,
+                    lon_microdeg: current_lon,
+                    differential_fix: matches!(current_fix_quality, Some(FixQuality::Differential)),
                     gps_unix_time: current_gps_time,
                     sensor_battery: current_battery,
+                    mcu_battery: None,
+                    mcu_battery_state: None,
                 };
                 STORE.lock().await.push(point);
                 UPDATED.sender().send(());

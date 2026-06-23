@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+voop-protocol = { path = "../protocol" }
 log = { version = "0.4", default-features = false }
 static_cell = "2"
 heapless = "0.8"
@@ -31,7 +32,3 @@ nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc", rev = "8efd935", featur
 nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc", rev = "8efd935", features = ["critical-section-impl"] }
 trouble-host = { version = "0.7", features = ["scan", "gatt", "peripheral", "derive"] }
 bt-hci = { version = "0.9", default-features = false }
-
-[profile.release]
-opt-level = "s"
-panic = "abort"

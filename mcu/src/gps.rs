@@ -4,11 +4,7 @@ use embassy_nrf::{peripherals, Peri};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::watch::Watch;
 
-#[derive(Clone, Copy, Debug)]
-pub enum FixQuality {
-    Autonomous,
-    Differential,
-}
+pub use voop_protocol::FixQuality;
 
 #[derive(Clone, Debug)]
 pub struct Location {

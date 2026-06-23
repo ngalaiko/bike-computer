@@ -1,0 +1,18 @@
+# Xcode build output
+.build/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Generated protocol bindings (run `mise run ios:protocol` to regenerate)
+VoopProtocol.xcframework/
+Voop/Generated/
+
+# CocoaPods / SPM
+Pods/
+.swiftpm/
+
+# macOS
+.DS_Store

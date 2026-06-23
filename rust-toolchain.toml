@@ -1,0 +1,4 @@
+[toolchain]
+channel = "1.93.0"
+targets = ["thumbv7em-none-eabihf", "aarch64-apple-ios", "aarch64-apple-ios-sim"]
+components = ["llvm-tools"]

@@ -2,10 +2,8 @@
 import Foundation
 import Observation
 
-private nonisolated(unsafe) let mcuServiceUUID = CBUUID(string: "TODO-REPLACE-WITH-REAL-UUID")
-private nonisolated(unsafe) let statusCharUUID = CBUUID(string: "TODO-REPLACE-WITH-REAL-UUID")
-private nonisolated(unsafe) let sensorControlCharUUID = CBUUID(string: "TODO-REPLACE-WITH-REAL-UUID")
-private nonisolated(unsafe) let dataTransferCharUUID = CBUUID(string: "TODO-REPLACE-WITH-REAL-UUID")
+private nonisolated(unsafe) let mcuServiceUUID = CBUUID(string: "bece0001-ede4-4b59-8c60-1ee44d963a05")
+private nonisolated(unsafe) let dataTransferCharUUID = CBUUID(string: "bece0002-ede4-4b59-8c60-1ee44d963a05")
 
 @MainActor
 @Observable
