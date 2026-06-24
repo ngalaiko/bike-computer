@@ -9,7 +9,7 @@ use nrf_sdc::{self as sdc, mpsl};
 use static_cell::StaticCell;
 use trouble_host::prelude::*;
 
-pub use central::{Error, BATTERY, CRANK_REVS};
+pub use central::Error;
 
 pub(crate) type MyController = nrf_sdc::SoftdeviceController<'static>;
 
@@ -50,7 +50,6 @@ impl Ble {
                 .await;
                 if let Err(e) = runner_result {
                     log::warn!("[BLE] runner error: {:?}", e);
-                    CRANK_REVS.sender().send(Err(Error::RunnerCrashed));
                 }
             },
         )

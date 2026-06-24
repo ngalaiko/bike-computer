@@ -251,21 +251,38 @@ typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureStr
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_DATA_CHAR_UUID
-#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_DATA_CHAR_UUID
-RustBuffer uniffi_voop_protocol_fn_func_data_char_uuid(RustCallStatus *_Nonnull out_status
-    
-);
-#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_SERVICE_UUID
 #define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_SERVICE_UUID
 RustBuffer uniffi_voop_protocol_fn_func_service_uuid(RustCallStatus *_Nonnull out_status
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_STATUS_CHAR_UUID
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_STATUS_CHAR_UUID
+RustBuffer uniffi_voop_protocol_fn_func_status_char_uuid(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_STREAM_CHAR_UUID
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_STREAM_CHAR_UUID
+RustBuffer uniffi_voop_protocol_fn_func_stream_char_uuid(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_TIME_SYNC_CHAR_UUID
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_TIME_SYNC_CHAR_UUID
+RustBuffer uniffi_voop_protocol_fn_func_time_sync_char_uuid(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_UNPACK_DATA_POINT
 #define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_UNPACK_DATA_POINT
 RustBuffer uniffi_voop_protocol_fn_func_unpack_data_point(RustBuffer bytes, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_UNPACK_DEVICE_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_FN_FUNC_UNPACK_DEVICE_STATUS
+RustBuffer uniffi_voop_protocol_fn_func_unpack_device_status(RustBuffer bytes, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_VOOP_PROTOCOL_RUSTBUFFER_ALLOC
@@ -548,21 +565,39 @@ void ffi_voop_protocol_rust_future_free_void(uint64_t handle
 void ffi_voop_protocol_rust_future_complete_void(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
-#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_DATA_CHAR_UUID
-#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_DATA_CHAR_UUID
-uint16_t uniffi_voop_protocol_checksum_func_data_char_uuid(void
-    
-);
-#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_SERVICE_UUID
 #define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_SERVICE_UUID
 uint16_t uniffi_voop_protocol_checksum_func_service_uuid(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_STATUS_CHAR_UUID
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_STATUS_CHAR_UUID
+uint16_t uniffi_voop_protocol_checksum_func_status_char_uuid(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_STREAM_CHAR_UUID
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_STREAM_CHAR_UUID
+uint16_t uniffi_voop_protocol_checksum_func_stream_char_uuid(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_TIME_SYNC_CHAR_UUID
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_TIME_SYNC_CHAR_UUID
+uint16_t uniffi_voop_protocol_checksum_func_time_sync_char_uuid(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_UNPACK_DATA_POINT
 #define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_UNPACK_DATA_POINT
 uint16_t uniffi_voop_protocol_checksum_func_unpack_data_point(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_UNPACK_DEVICE_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_VOOP_PROTOCOL_CHECKSUM_FUNC_UNPACK_DEVICE_STATUS
+uint16_t uniffi_voop_protocol_checksum_func_unpack_device_status(void
     
 );
 #endif

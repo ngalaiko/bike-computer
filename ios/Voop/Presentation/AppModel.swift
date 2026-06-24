@@ -6,17 +6,20 @@ import Observation
 final class AppModel {
     let ble: BLEManager
     let health: HealthKitService
-    let rides: RideStore
+    let pointStore: PointStore
 
-    private(set) var pendingPoints: [DataPoint] = []
-    private(set) var gpsAnchor: GpsAnchor?
-
+    private(set) var detectedRides: [Ride] = []
     private(set) var isDevicePaired: Bool = UserDefaults.standard.bool(forKey: "isDevicePaired")
+
+    // Set once when the first unix-timestamped DataPoint arrives.
+    // Used to retroactively convert buffered monotonic points to unix time.
+    private var timeAnchor: (iosDate: Date, unixSeconds: UInt32)?
 
     init() {
         ble = BLEManager()
         health = HealthKitService()
-        rides = (try? RideStore()) ?? { fatalError("Failed to create RideStore") }()
+        pointStore = (try? PointStore()) ?? { fatalError("Failed to create PointStore") }()
+        redetect()
     }
 
     func markDevicePaired() {
@@ -26,21 +29,16 @@ final class AppModel {
 
     func startReceiving() async {
         for await point in ble.dataPoints {
-            pendingPoints.append(point)
-            if gpsAnchor == nil, point.latMicrodeg != nil {
-                gpsAnchor = GpsAnchor(monotonicMs: point.monotonicMs, wallClockDate: Date())
+            if timeAnchor == nil, case .unix(let seconds) = point.time {
+                timeAnchor = (iosDate: Date.now, unixSeconds: seconds)
             }
+            try? pointStore.insert(point)
+            redetect()
         }
     }
 
-    func syncAndSave() async {
-        let detectedRides = DetectRides.detect(points: pendingPoints, anchor: gpsAnchor)
-        for ride in detectedRides {
-            try? await rides.save(ride)
-            let metrics = CalculateMetrics.compute(ride: ride)
-            try? await health.save(ride: ride, metrics: metrics)
-        }
-        pendingPoints.removeAll()
-        gpsAnchor = nil
+    private func redetect() {
+        let points = (try? pointStore.fetchAll()) ?? []
+        detectedRides = DetectRides.detect(points: points, anchor: timeAnchor)
     }
 }

@@ -2,7 +2,9 @@
 import Foundation
 
 private nonisolated(unsafe) let mcuServiceUUID = CBUUID(string: serviceUuid())
-private nonisolated(unsafe) let dataTransferCharUUID = CBUUID(string: dataCharUuid())
+private nonisolated(unsafe) let streamCharUUID = CBUUID(string: streamCharUuid())
+private nonisolated(unsafe) let statusCharUUID = CBUUID(string: statusCharUuid())
+private nonisolated(unsafe) let timeSyncCharUUID = CBUUID(string: timeSyncCharUuid())
 
 final class MCUPeripheral: NSObject, CBPeripheralDelegate, @unchecked Sendable {
     var onDataPoint: (@MainActor (DataPoint) -> Void)?
@@ -20,13 +22,28 @@ final class MCUPeripheral: NSObject, CBPeripheralDelegate, @unchecked Sendable {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices _: (any Error)?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == mcuServiceUUID }) else { return }
-        peripheral.discoverCharacteristics([dataTransferCharUUID], for: service)
+        peripheral.discoverCharacteristics([streamCharUUID, statusCharUUID, timeSyncCharUUID], for: service)
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error _: (any Error)?) {
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didDiscoverCharacteristicsFor service: CBService,
+        error _: (any Error)?
+    ) {
         guard let chars = service.characteristics else { return }
-        for char in chars where char.uuid == dataTransferCharUUID {
-            peripheral.setNotifyValue(true, for: char)
+        for char in chars {
+            switch char.uuid {
+            case streamCharUUID:
+                peripheral.setNotifyValue(true, for: char)
+            case statusCharUUID:
+                peripheral.readValue(for: char)
+            case timeSyncCharUUID:
+                var ts = UInt32(Date().timeIntervalSince1970).littleEndian
+                let data = Data(bytes: &ts, count: 4)
+                peripheral.writeValue(data, for: char, type: .withResponse)
+            default:
+                break
+            }
         }
     }
 
@@ -36,11 +53,19 @@ final class MCUPeripheral: NSObject, CBPeripheralDelegate, @unchecked Sendable {
         error: (any Error)?
     ) {
         guard error == nil, let data = characteristic.value else { return }
-        if characteristic.uuid == dataTransferCharUUID {
+        switch characteristic.uuid {
+        case streamCharUUID:
             if let point = unpackDataPoint(bytes: data) {
                 let cb = onDataPoint
                 Task { @MainActor in cb?(point) }
             }
+        case statusCharUUID:
+            if let status = unpackDeviceStatus(bytes: data) {
+                let cb = onStatusUpdate
+                Task { @MainActor in cb?(status) }
+            }
+        default:
+            break
         }
     }
 }

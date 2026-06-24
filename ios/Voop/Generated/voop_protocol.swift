@@ -545,184 +545,25 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 }
 
 
-/**
- * A single telemetry sample streamed over BLE.
- *
- * Wire format (little-endian, variable length, max 21 bytes):
- * [monotonic_ms u32][flags u8][optional fields in flag-bit order]
- *
- * Flags:
- * 0x01 = crank_revs       : u16
- * 0x02 = lat_microdeg + lon_microdeg : i32 + i32
- * 0x04 = gps_unix_time    : u32
- * 0x08 = sensor_battery   : u8
- * 0x10 = differential_fix : (no data, flag only)
- * 0x20 = mcu_battery      : u8 percent + u8 state (McuBatteryState repr, always set)
- */
-public struct DataPoint {
-    public var monotonicMs: UInt32
-    public var crankRevs: UInt16?
-    /**
-     * Latitude in microdegrees (÷ 1_000_000 for degrees).
-     */
-    public var latMicrodeg: Int32?
-    /**
-     * Longitude in microdegrees (÷ 1_000_000 for degrees).
-     */
-    public var lonMicrodeg: Int32?
-    public var differentialFix: Bool
-    public var gpsUnixTime: UInt32?
-    /**
-     * Garmin cadence sensor battery percent.
-     */
-    public var sensorBattery: UInt8?
-    public var mcuBattery: McuBattery
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(monotonicMs: UInt32, crankRevs: UInt16?, 
-        /**
-         * Latitude in microdegrees (÷ 1_000_000 for degrees).
-         */latMicrodeg: Int32?, 
-        /**
-         * Longitude in microdegrees (÷ 1_000_000 for degrees).
-         */lonMicrodeg: Int32?, differentialFix: Bool, gpsUnixTime: UInt32?, 
-        /**
-         * Garmin cadence sensor battery percent.
-         */sensorBattery: UInt8?, mcuBattery: McuBattery) {
-        self.monotonicMs = monotonicMs
-        self.crankRevs = crankRevs
-        self.latMicrodeg = latMicrodeg
-        self.lonMicrodeg = lonMicrodeg
-        self.differentialFix = differentialFix
-        self.gpsUnixTime = gpsUnixTime
-        self.sensorBattery = sensorBattery
-        self.mcuBattery = mcuBattery
-    }
-}
-
-#if compiler(>=6)
-extension DataPoint: Sendable {}
-#endif
-
-
-extension DataPoint: Equatable, Hashable {
-    public static func ==(lhs: DataPoint, rhs: DataPoint) -> Bool {
-        if lhs.monotonicMs != rhs.monotonicMs {
-            return false
-        }
-        if lhs.crankRevs != rhs.crankRevs {
-            return false
-        }
-        if lhs.latMicrodeg != rhs.latMicrodeg {
-            return false
-        }
-        if lhs.lonMicrodeg != rhs.lonMicrodeg {
-            return false
-        }
-        if lhs.differentialFix != rhs.differentialFix {
-            return false
-        }
-        if lhs.gpsUnixTime != rhs.gpsUnixTime {
-            return false
-        }
-        if lhs.sensorBattery != rhs.sensorBattery {
-            return false
-        }
-        if lhs.mcuBattery != rhs.mcuBattery {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(monotonicMs)
-        hasher.combine(crankRevs)
-        hasher.combine(latMicrodeg)
-        hasher.combine(lonMicrodeg)
-        hasher.combine(differentialFix)
-        hasher.combine(gpsUnixTime)
-        hasher.combine(sensorBattery)
-        hasher.combine(mcuBattery)
-    }
-}
-
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeDataPoint: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DataPoint {
-        return
-            try DataPoint(
-                monotonicMs: FfiConverterUInt32.read(from: &buf), 
-                crankRevs: FfiConverterOptionUInt16.read(from: &buf), 
-                latMicrodeg: FfiConverterOptionInt32.read(from: &buf), 
-                lonMicrodeg: FfiConverterOptionInt32.read(from: &buf), 
-                differentialFix: FfiConverterBool.read(from: &buf), 
-                gpsUnixTime: FfiConverterOptionUInt32.read(from: &buf), 
-                sensorBattery: FfiConverterOptionUInt8.read(from: &buf), 
-                mcuBattery: FfiConverterTypeMcuBattery.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: DataPoint, into buf: inout [UInt8]) {
-        FfiConverterUInt32.write(value.monotonicMs, into: &buf)
-        FfiConverterOptionUInt16.write(value.crankRevs, into: &buf)
-        FfiConverterOptionInt32.write(value.latMicrodeg, into: &buf)
-        FfiConverterOptionInt32.write(value.lonMicrodeg, into: &buf)
-        FfiConverterBool.write(value.differentialFix, into: &buf)
-        FfiConverterOptionUInt32.write(value.gpsUnixTime, into: &buf)
-        FfiConverterOptionUInt8.write(value.sensorBattery, into: &buf)
-        FfiConverterTypeMcuBattery.write(value.mcuBattery, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDataPoint_lift(_ buf: RustBuffer) throws -> DataPoint {
-    return try FfiConverterTypeDataPoint.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDataPoint_lower(_ value: DataPoint) -> RustBuffer {
-    return FfiConverterTypeDataPoint.lower(value)
-}
-
-
-/**
- * MCU battery level and charging state.
- */
-public struct McuBattery {
-    /**
-     * Battery percentage 0–100.
-     */
+public struct BatteryStatus {
     public var percent: UInt8
-    public var state: McuBatteryState
+    public var state: BatteryState
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
-        /**
-         * Battery percentage 0–100.
-         */percent: UInt8, state: McuBatteryState) {
+    public init(percent: UInt8, state: BatteryState) {
         self.percent = percent
         self.state = state
     }
 }
 
 #if compiler(>=6)
-extension McuBattery: Sendable {}
+extension BatteryStatus: Sendable {}
 #endif
 
 
-extension McuBattery: Equatable, Hashable {
-    public static func ==(lhs: McuBattery, rhs: McuBattery) -> Bool {
+extension BatteryStatus: Equatable, Hashable {
+    public static func ==(lhs: BatteryStatus, rhs: BatteryStatus) -> Bool {
         if lhs.percent != rhs.percent {
             return false
         }
@@ -743,18 +584,18 @@ extension McuBattery: Equatable, Hashable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeMcuBattery: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> McuBattery {
+public struct FfiConverterTypeBatteryStatus: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BatteryStatus {
         return
-            try McuBattery(
+            try BatteryStatus(
                 percent: FfiConverterUInt8.read(from: &buf), 
-                state: FfiConverterTypeMcuBatteryState.read(from: &buf)
+                state: FfiConverterTypeBatteryState.read(from: &buf)
         )
     }
 
-    public static func write(_ value: McuBattery, into buf: inout [UInt8]) {
+    public static func write(_ value: BatteryStatus, into buf: inout [UInt8]) {
         FfiConverterUInt8.write(value.percent, into: &buf)
-        FfiConverterTypeMcuBatteryState.write(value.state, into: &buf)
+        FfiConverterTypeBatteryState.write(value.state, into: &buf)
     }
 }
 
@@ -762,61 +603,242 @@ public struct FfiConverterTypeMcuBattery: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeMcuBattery_lift(_ buf: RustBuffer) throws -> McuBattery {
-    return try FfiConverterTypeMcuBattery.lift(buf)
+public func FfiConverterTypeBatteryStatus_lift(_ buf: RustBuffer) throws -> BatteryStatus {
+    return try FfiConverterTypeBatteryStatus.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeMcuBattery_lower(_ value: McuBattery) -> RustBuffer {
-    return FfiConverterTypeMcuBattery.lower(value)
+public func FfiConverterTypeBatteryStatus_lower(_ value: BatteryStatus) -> RustBuffer {
+    return FfiConverterTypeBatteryStatus.lower(value)
+}
+
+
+/**
+ * A single telemetry sample streamed over STREAM_CHAR_UUID.
+ *
+ * Wire format (little-endian, variable, 5–15 bytes):
+ * [flags u8][time u32][lat i32?][lon i32?][crank_revs u16?]
+ * flags: bit 0 = unix time (else monotonic), bit 1 = coords, bit 2 = crank_revs
+ */
+public struct DataPoint {
+    public var time: Time
+    public var latMicrodeg: Int32?
+    public var lonMicrodeg: Int32?
+    public var crankRevs: UInt16?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(time: Time, latMicrodeg: Int32?, lonMicrodeg: Int32?, crankRevs: UInt16?) {
+        self.time = time
+        self.latMicrodeg = latMicrodeg
+        self.lonMicrodeg = lonMicrodeg
+        self.crankRevs = crankRevs
+    }
+}
+
+#if compiler(>=6)
+extension DataPoint: Sendable {}
+#endif
+
+
+extension DataPoint: Equatable, Hashable {
+    public static func ==(lhs: DataPoint, rhs: DataPoint) -> Bool {
+        if lhs.time != rhs.time {
+            return false
+        }
+        if lhs.latMicrodeg != rhs.latMicrodeg {
+            return false
+        }
+        if lhs.lonMicrodeg != rhs.lonMicrodeg {
+            return false
+        }
+        if lhs.crankRevs != rhs.crankRevs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(time)
+        hasher.combine(latMicrodeg)
+        hasher.combine(lonMicrodeg)
+        hasher.combine(crankRevs)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDataPoint: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DataPoint {
+        return
+            try DataPoint(
+                time: FfiConverterTypeTime.read(from: &buf), 
+                latMicrodeg: FfiConverterOptionInt32.read(from: &buf), 
+                lonMicrodeg: FfiConverterOptionInt32.read(from: &buf), 
+                crankRevs: FfiConverterOptionUInt16.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DataPoint, into buf: inout [UInt8]) {
+        FfiConverterTypeTime.write(value.time, into: &buf)
+        FfiConverterOptionInt32.write(value.latMicrodeg, into: &buf)
+        FfiConverterOptionInt32.write(value.lonMicrodeg, into: &buf)
+        FfiConverterOptionUInt16.write(value.crankRevs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDataPoint_lift(_ buf: RustBuffer) throws -> DataPoint {
+    return try FfiConverterTypeDataPoint.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDataPoint_lower(_ value: DataPoint) -> RustBuffer {
+    return FfiConverterTypeDataPoint.lower(value)
+}
+
+
+/**
+ * Snapshot read from the STATUS_CHAR_UUID characteristic.
+ *
+ * Wire format (4 bytes, fixed):
+ * [mcu_percent u8][mcu_state u8][flags u8][sensor_battery u8]
+ * flags: bit 0 = sensor_connected, bit 1 = sensor_battery_present
+ */
+public struct DeviceStatus {
+    public var mcuBattery: BatteryStatus
+    public var sensorConnected: Bool
+    /**
+     * Sensor battery percent. None if sensor is not connected or level unknown.
+     */
+    public var sensorBattery: UInt8?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(mcuBattery: BatteryStatus, sensorConnected: Bool, 
+        /**
+         * Sensor battery percent. None if sensor is not connected or level unknown.
+         */sensorBattery: UInt8?) {
+        self.mcuBattery = mcuBattery
+        self.sensorConnected = sensorConnected
+        self.sensorBattery = sensorBattery
+    }
+}
+
+#if compiler(>=6)
+extension DeviceStatus: Sendable {}
+#endif
+
+
+extension DeviceStatus: Equatable, Hashable {
+    public static func ==(lhs: DeviceStatus, rhs: DeviceStatus) -> Bool {
+        if lhs.mcuBattery != rhs.mcuBattery {
+            return false
+        }
+        if lhs.sensorConnected != rhs.sensorConnected {
+            return false
+        }
+        if lhs.sensorBattery != rhs.sensorBattery {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(mcuBattery)
+        hasher.combine(sensorConnected)
+        hasher.combine(sensorBattery)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDeviceStatus: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DeviceStatus {
+        return
+            try DeviceStatus(
+                mcuBattery: FfiConverterTypeBatteryStatus.read(from: &buf), 
+                sensorConnected: FfiConverterBool.read(from: &buf), 
+                sensorBattery: FfiConverterOptionUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DeviceStatus, into buf: inout [UInt8]) {
+        FfiConverterTypeBatteryStatus.write(value.mcuBattery, into: &buf)
+        FfiConverterBool.write(value.sensorConnected, into: &buf)
+        FfiConverterOptionUInt8.write(value.sensorBattery, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeviceStatus_lift(_ buf: RustBuffer) throws -> DeviceStatus {
+    return try FfiConverterTypeDeviceStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeviceStatus_lower(_ value: DeviceStatus) -> RustBuffer {
+    return FfiConverterTypeDeviceStatus.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-/**
- * MCU power state.
- */
 
-public enum McuBatteryState : UInt8 {
+public enum BatteryState : UInt8 {
     
-    case discharging = 0
-    case charging = 1
+    case charging = 0
+    case discharging = 1
 }
 
 
 #if compiler(>=6)
-extension McuBatteryState: Sendable {}
+extension BatteryState: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeMcuBatteryState: FfiConverterRustBuffer {
-    typealias SwiftType = McuBatteryState
+public struct FfiConverterTypeBatteryState: FfiConverterRustBuffer {
+    typealias SwiftType = BatteryState
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> McuBatteryState {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BatteryState {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .discharging
+        case 1: return .charging
         
-        case 2: return .charging
+        case 2: return .discharging
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
-    public static func write(_ value: McuBatteryState, into buf: inout [UInt8]) {
+    public static func write(_ value: BatteryState, into buf: inout [UInt8]) {
         switch value {
         
         
-        case .discharging:
+        case .charging:
             writeInt(&buf, Int32(1))
         
         
-        case .charging:
+        case .discharging:
             writeInt(&buf, Int32(2))
         
         }
@@ -827,19 +849,104 @@ public struct FfiConverterTypeMcuBatteryState: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeMcuBatteryState_lift(_ buf: RustBuffer) throws -> McuBatteryState {
-    return try FfiConverterTypeMcuBatteryState.lift(buf)
+public func FfiConverterTypeBatteryState_lift(_ buf: RustBuffer) throws -> BatteryState {
+    return try FfiConverterTypeBatteryState.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeMcuBatteryState_lower(_ value: McuBatteryState) -> RustBuffer {
-    return FfiConverterTypeMcuBatteryState.lower(value)
+public func FfiConverterTypeBatteryState_lower(_ value: BatteryState) -> RustBuffer {
+    return FfiConverterTypeBatteryState.lower(value)
 }
 
 
-extension McuBatteryState: Equatable, Hashable {}
+extension BatteryState: Equatable, Hashable {}
+
+
+
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Time carried in each DataPoint.
+ */
+
+public enum Time {
+    
+    /**
+     * Milliseconds since MCU boot. Used before iOS has written a time sync.
+     */
+    case monotonic(ms: UInt32
+    )
+    /**
+     * Seconds since Unix epoch. Used after iOS writes TIME_SYNC_CHAR_UUID.
+     */
+    case unix(seconds: UInt32
+    )
+}
+
+
+#if compiler(>=6)
+extension Time: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTime: FfiConverterRustBuffer {
+    typealias SwiftType = Time
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Time {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .monotonic(ms: try FfiConverterUInt32.read(from: &buf)
+        )
+        
+        case 2: return .unix(seconds: try FfiConverterUInt32.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Time, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .monotonic(ms):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(ms, into: &buf)
+            
+        
+        case let .unix(seconds):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt32.write(seconds, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTime_lift(_ buf: RustBuffer) throws -> Time {
+    return try FfiConverterTypeTime.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTime_lower(_ value: Time) -> RustBuffer {
+    return FfiConverterTypeTime.lower(value)
+}
+
+
+extension Time: Equatable, Hashable {}
 
 
 
@@ -897,30 +1004,6 @@ fileprivate struct FfiConverterOptionUInt16: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
-    typealias SwiftType = UInt32?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterUInt32.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterUInt32.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterOptionInt32: FfiConverterRustBuffer {
     typealias SwiftType = Int32?
 
@@ -965,11 +1048,29 @@ fileprivate struct FfiConverterOptionTypeDataPoint: FfiConverterRustBuffer {
         }
     }
 }
-public func dataCharUuid() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_voop_protocol_fn_func_data_char_uuid($0
-    )
-})
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeDeviceStatus: FfiConverterRustBuffer {
+    typealias SwiftType = DeviceStatus?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDeviceStatus.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDeviceStatus.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
 }
 public func serviceUuid() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -977,9 +1078,34 @@ public func serviceUuid() -> String  {
     )
 })
 }
+public func statusCharUuid() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_voop_protocol_fn_func_status_char_uuid($0
+    )
+})
+}
+public func streamCharUuid() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_voop_protocol_fn_func_stream_char_uuid($0
+    )
+})
+}
+public func timeSyncCharUuid() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_voop_protocol_fn_func_time_sync_char_uuid($0
+    )
+})
+}
 public func unpackDataPoint(bytes: Data) -> DataPoint?  {
     return try!  FfiConverterOptionTypeDataPoint.lift(try! rustCall() {
     uniffi_voop_protocol_fn_func_unpack_data_point(
+        FfiConverterData.lower(bytes),$0
+    )
+})
+}
+public func unpackDeviceStatus(bytes: Data) -> DeviceStatus?  {
+    return try!  FfiConverterOptionTypeDeviceStatus.lift(try! rustCall() {
+    uniffi_voop_protocol_fn_func_unpack_device_status(
         FfiConverterData.lower(bytes),$0
     )
 })
@@ -1000,13 +1126,22 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_voop_protocol_checksum_func_data_char_uuid() != 16623) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_voop_protocol_checksum_func_service_uuid() != 61102) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_voop_protocol_checksum_func_status_char_uuid() != 30281) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_voop_protocol_checksum_func_stream_char_uuid() != 14574) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_voop_protocol_checksum_func_time_sync_char_uuid() != 64711) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_voop_protocol_checksum_func_unpack_data_point() != 65315) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_voop_protocol_checksum_func_unpack_device_status() != 54688) {
         return InitializationResult.apiChecksumMismatch
     }
 

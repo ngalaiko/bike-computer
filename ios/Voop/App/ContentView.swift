@@ -6,17 +6,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if appModel.isDevicePaired {
-                TabView {
-                    Tab("Status", systemImage: "antenna.radiowaves.left.and.right") {
-                        NavigationStack { StatusView() }
-                    }
-                    Tab("Rides", systemImage: "bicycle") {
-                        NavigationStack { RideListView() }
-                    }
-                    Tab("Pair Sensor", systemImage: "sensor.tag.radiowaves.forward") {
-                        NavigationStack { PairingView() }
-                    }
-                }
+                MainView()
             } else {
                 SetupView()
             }

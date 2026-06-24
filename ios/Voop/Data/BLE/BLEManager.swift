@@ -8,7 +8,7 @@ private nonisolated(unsafe) let mcuServiceUUID = CBUUID(string: serviceUuid())
 @Observable
 final class BLEManager: NSObject {
     private(set) var connectionState: ConnectionState = .idle
-    private(set) var deviceStatus = DeviceStatus(gpsFix: .none, cadenceSensorConnected: false, batteryPercent: nil)
+    private(set) var deviceStatus: DeviceStatus?
 
     private var central: CBCentralManager?
     private var peripheral: MCUPeripheral?
@@ -37,7 +37,7 @@ final class BLEManager: NSObject {
         central = CBCentralManager(
             delegate: self,
             queue: .main,
-            options: nil
+            options: [CBCentralManagerOptionRestoreIdentifierKey: "com.voop.central"]
         )
     }
 
@@ -54,6 +54,20 @@ final class BLEManager: NSObject {
 }
 
 extension BLEManager: CBCentralManagerDelegate {
+    nonisolated func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+        MainActor.assumeIsolated {
+            // iOS hands back any peripheral it was managing on our behalf while we were suspended.
+            // Re-adopt it so we skip scanning and go straight to the connected state.
+            guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral],
+                  let p = peripherals.first
+            else { return }
+
+            connectingPeripheral = p
+            central.connect(p, options: nil)
+            connectionState = .connecting
+        }
+    }
+
     nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
         MainActor.assumeIsolated {
             if central.state == .poweredOn {

@@ -2,17 +2,16 @@
 #![no_main]
 
 use embassy_executor::Spawner;
-use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use panic_halt as _;
 
 mod irqs;
 pub use irqs::Irqs;
 
 pub mod ble;
+pub mod clock;
 pub mod gps;
 pub mod logger;
 pub mod screen;
-pub mod store;
 pub mod usb;
 
 #[embassy_executor::task]
@@ -40,11 +39,6 @@ async fn screen_task(screen: screen::Screen) {
     screen.run().await;
 }
 
-#[embassy_executor::task]
-async fn store_task() {
-    store::run().await;
-}
-
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let mut config = embassy_nrf::config::Config::default();
@@ -69,5 +63,4 @@ async fn main(spawner: Spawner) {
     spawner.spawn(gps_task(gps).expect("gps: failed to spawn"));
     spawner.spawn(ble_task(ble).expect("ble: failed to spawn"));
     spawner.spawn(screen_task(screen).expect("screen: failed to spawn"));
-    spawner.spawn(store_task().expect("store: failed to spawn"));
 }

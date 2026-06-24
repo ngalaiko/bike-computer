@@ -34,10 +34,16 @@ impl core::fmt::Display for Error {
 impl core::error::Error for Error {}
 
 // Cumulative crank revolutions — sent only when the value changes (bike moving).
-pub static CRANK_REVS: Watch<CriticalSectionRawMutex, Result<u16, Error>, 1> = Watch::new();
+// 2 receivers: peripheral DataPoint loop + screen.
+pub static CRANK_REVS: Watch<CriticalSectionRawMutex, u16, 2> = Watch::new();
 
-// Battery percentage (0–100) — sent when the sensor reports a change.
-pub static BATTERY: Watch<CriticalSectionRawMutex, Result<u8, Error>, 1> = Watch::new();
+// Whether the cadence sensor is connected.
+// 2 receivers: peripheral DataPoint loop + screen.
+pub static SENSOR_CONNECTED: Watch<CriticalSectionRawMutex, bool, 2> = Watch::new();
+
+// Last known sensor battery %.
+// 2 receivers: peripheral DataPoint loop + screen.
+pub static SENSOR_BATTERY: Watch<CriticalSectionRawMutex, u8, 2> = Watch::new();
 
 // Signals the address of the first CSC sensor spotted during scanning.
 pub(super) static SENSOR_ADDR: Signal<CriticalSectionRawMutex, Address> = Signal::new();
@@ -79,6 +85,7 @@ impl EventHandler for CscEventHandler {
 
 pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
     loop {
+        SENSOR_CONNECTED.sender().send(false);
         SENSOR_ADDR.reset();
 
         log::info!("[BLE central] Scanning for CSC sensor...");
@@ -121,6 +128,7 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
             }
         };
         log::info!("[BLE central] Connected to Garmin");
+        SENSOR_CONNECTED.sender().send(true);
 
         let client: GattClient<'_, MyController, DefaultPacketPool, 4> =
             match GattClient::new(stack, &conn).await {
@@ -190,7 +198,7 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
                         if data.len() >= 5 && (data[0] & 0x02) != 0 {
                             let revs = u16::from_le_bytes([data[1], data[2]]);
                             if Some(revs) != last_revs {
-                                crank_tx.send(Ok(revs));
+                                crank_tx.send(revs);
                                 last_revs = Some(revs);
                             }
                             log::debug!("[BLE central] CSC revs={}", revs);
@@ -198,14 +206,13 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
                     }
                 },
                 async {
-                    let battery_tx = BATTERY.sender();
                     match battery_listener {
                         Some(ref mut listener) => loop {
                             let notif = listener.next().await;
                             let data = notif.as_ref();
                             if let Some(&level) = data.first() {
                                 log::info!("[BLE central] Battery: {}%", level);
-                                battery_tx.send(Ok(level));
+                                SENSOR_BATTERY.sender().send(level);
                             }
                         },
                         None => core::future::pending().await,

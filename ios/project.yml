@@ -19,10 +19,12 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: Voop
+    attributes:
+      DevelopmentTeam: 5S3AM79MK3
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.galaiko.voop
-        DEVELOPMENT_TEAM: YT4992HVGM
+        DEVELOPMENT_TEAM: 5S3AM79MK3
         INFOPLIST_FILE: Voop/App/Info.plist
         CODE_SIGN_STYLE: Automatic
     dependencies:

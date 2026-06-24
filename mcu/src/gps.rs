@@ -4,35 +4,19 @@ use embassy_nrf::{peripherals, Peri};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::watch::Watch;
 
-pub use voop_protocol::FixQuality;
-
-#[derive(Clone, Debug)]
-pub struct Location {
-    pub lat: f64,
-    pub lon: f64,
-    pub fix_quality: FixQuality,
+#[derive(Clone, Copy)]
+pub struct GpsState {
+    pub lat_microdeg: i32,
+    pub lon_microdeg: i32,
 }
 
-// Sent on each valid fix.
-pub static LOCATION: Watch<CriticalSectionRawMutex, Result<Location, Error>, 1> = Watch::new();
+pub static GPS: Watch<CriticalSectionRawMutex, GpsState, 2> = Watch::new();
 
-// Unix timestamp — sent on every valid RMC sentence with date+time.
-pub static TIME: Watch<CriticalSectionRawMutex, Result<u32, Error>, 1> = Watch::new();
-
-#[derive(Clone, Debug)]
-pub enum Error {
-    SpawnFailed,
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum FixQuality {
+    Autonomous,
+    Differential,
 }
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::SpawnFailed => write!(f, "failed to spawn GPS task"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 pub struct Gps {
     uarte0: Peri<'static, peripherals::UARTE0>,
@@ -61,8 +45,7 @@ impl Gps {
         let uarte = Uarte::new(self.uarte0, self.rxd, self.txd, crate::Irqs, config);
         let (_tx, mut rx) = uarte.split_with_idle(self.timer1, self.ppi_ch0, self.ppi_ch1);
 
-        let location_tx = LOCATION.sender();
-        let time_tx = TIME.sender();
+        let gps_tx = GPS.sender();
 
         let mut buf = [0u8; 1024];
         loop {
@@ -83,10 +66,13 @@ impl Gps {
                                     }
                                     _ => None,
                                 };
-                                if let (Some(fix_quality), Some(lat), Some(lon)) =
+                                if let (Some(_fix), Some(lat), Some(lon)) =
                                     (fix_quality, rmc.lat, rmc.lon)
                                 {
-                                    location_tx.send(Ok(Location { lat, lon, fix_quality }));
+                                    gps_tx.send(GpsState {
+                                        lat_microdeg: (lat * 1_000_000.0) as i32,
+                                        lon_microdeg: (lon * 1_000_000.0) as i32,
+                                    });
                                 }
                                 if let (Some(date), Some(time)) = (rmc.fix_date, rmc.fix_time) {
                                     let epoch = to_unix_epoch(
@@ -97,7 +83,7 @@ impl Gps {
                                         time.minute() as u8,
                                         time.second() as u8,
                                     );
-                                    time_tx.send(Ok(epoch));
+                                    crate::clock::set(epoch).await;
                                 }
                             }
                             Ok(_) | Err(_) => {}

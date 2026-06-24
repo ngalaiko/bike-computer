@@ -1,4 +1,5 @@
 use display_interface::DisplayError;
+use embassy_futures::select::{select, select3, Either, Either3};
 use embassy_nrf::{peripherals, twim, Peri};
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
@@ -10,7 +11,7 @@ use heapless::String;
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306};
 use static_cell::StaticCell;
 
-use crate::store::DataPoint;
+use crate::gps::GpsState;
 
 #[derive(Debug)]
 enum InternalError {
@@ -33,7 +34,15 @@ type Display = Ssd1306<
     ssd1306::mode::BufferedGraphicsMode<DisplaySize128x64>,
 >;
 
-fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), InternalError> {
+struct ScreenState {
+    gps: Option<GpsState>,
+    crank_revs: Option<u16>,
+    sensor_connected: bool,
+    sensor_battery: Option<u8>,
+    ios_connected: bool,
+}
+
+fn render(display: &mut Display, state: &ScreenState) -> Result<(), InternalError> {
     use core::fmt::Write;
 
     let style = MonoTextStyleBuilder::new()
@@ -41,46 +50,63 @@ fn render(display: &mut Display, point: Option<DataPoint>) -> Result<(), Interna
         .text_color(BinaryColor::On)
         .build();
 
-    display
-        .clear(BinaryColor::Off)
-        .map_err(|_| InternalError::RenderError)?;
+    display.clear(BinaryColor::Off).map_err(|_| InternalError::RenderError)?;
 
-    let mut line1: String<32> = String::new();
-    match point.and_then(|p| p.lat_microdeg.zip(p.lon_microdeg).map(|(lat, lon)| (lat, lon, p.differential_fix))) {
-        None => write!(line1, "GPS:---"),
-        Some((lat, lon, diff)) => {
-            let q = if diff { "DIF" } else { "AUT" };
-            write!(
-                line1,
-                "GPS:{} {:.2}/{:.2}",
-                q,
-                lat as f64 / 1_000_000.0,
-                lon as f64 / 1_000_000.0
-            )
-        }
+    // Line 0: GPS coordinates
+    let mut line: String<32> = String::new();
+    match state.gps {
+        None => write!(line, "GPS: ---"),
+        Some(g) => write!(
+            line,
+            "GPS:{:.2}/{:.2}",
+            g.lat_microdeg as f64 / 1_000_000.0,
+            g.lon_microdeg as f64 / 1_000_000.0
+        ),
     }
     .map_err(|_| InternalError::RenderError)?;
-    Text::with_baseline(&line1, Point::new(0, 0), style, Baseline::Top)
+    Text::with_baseline(&line, Point::new(0, 0), style, Baseline::Top)
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
-    let mut line2: String<16> = String::new();
-    match point.and_then(|p| p.crank_revs) {
-        None => write!(line2, "CRK: ---"),
-        Some(revs) => write!(line2, "CRK: {}", revs),
+    // Line 1: Crank revolutions
+    let mut line: String<16> = String::new();
+    match state.crank_revs {
+        None => write!(line, "CRK: ---"),
+        Some(r) => write!(line, "CRK: {}", r),
     }
     .map_err(|_| InternalError::RenderError)?;
-    Text::with_baseline(&line2, Point::new(0, 12), style, Baseline::Top)
+    Text::with_baseline(&line, Point::new(0, 11), style, Baseline::Top)
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
-    let mut line3: String<16> = String::new();
-    match point.and_then(|p| p.sensor_battery) {
-        None => write!(line3, "BAT: ---"),
-        Some(pct) => write!(line3, "BAT: {}%", pct),
+    // Line 2: MCU battery (hardcoded until we have real measurement)
+    let mut line: String<16> = String::new();
+    write!(line, "MCU: 100% CHG").map_err(|_| InternalError::RenderError)?;
+    Text::with_baseline(&line, Point::new(0, 22), style, Baseline::Top)
+        .draw(display)
+        .map_err(|_| InternalError::RenderError)?;
+
+    // Line 3: Sensor battery
+    let mut line: String<16> = String::new();
+    match state.sensor_battery {
+        None => write!(line, "SNS: ---"),
+        Some(b) => write!(line, "SNS: {}%", b),
     }
     .map_err(|_| InternalError::RenderError)?;
-    Text::with_baseline(&line3, Point::new(0, 24), style, Baseline::Top)
+    Text::with_baseline(&line, Point::new(0, 33), style, Baseline::Top)
+        .draw(display)
+        .map_err(|_| InternalError::RenderError)?;
+
+    // Line 4: Connection status
+    let mut line: String<16> = String::new();
+    write!(
+        line,
+        "iOS:{} CAD:{}",
+        if state.ios_connected { "Y" } else { "N" },
+        if state.sensor_connected { "Y" } else { "N" }
+    )
+    .map_err(|_| InternalError::RenderError)?;
+    Text::with_baseline(&line, Point::new(0, 44), style, Baseline::Top)
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
@@ -105,8 +131,14 @@ impl Screen {
     pub async fn run(self) {
         static TX_BUF: StaticCell<[u8; 64]> = StaticCell::new();
         let tx_buf = TX_BUF.init([0u8; 64]);
-        let i2c =
-            twim::Twim::new(self.i2c, crate::Irqs, self.sda, self.scl, twim::Config::default(), tx_buf);
+        let i2c = twim::Twim::new(
+            self.i2c,
+            crate::Irqs,
+            self.sda,
+            self.scl,
+            twim::Config::default(),
+            tx_buf,
+        );
         let interface = I2CDisplayInterface::new(i2c);
         let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
             .into_buffered_graphics_mode();
@@ -118,19 +150,55 @@ impl Screen {
         display.clear(BinaryColor::Off).ok();
         display.flush().ok();
 
-        let Some(mut updated_rx) = crate::store::UPDATED.receiver() else {
-            log::error!("[Screen] UPDATED watch: no free receiver slot");
+        let Some(mut gps_rx) = crate::gps::GPS.receiver() else {
+            log::error!("[Screen] GPS: no free receiver slot");
+            return;
+        };
+        let Some(mut crank_rx) = crate::ble::central::CRANK_REVS.receiver() else {
+            log::error!("[Screen] CRANK_REVS: no free receiver slot");
+            return;
+        };
+        let Some(mut sensor_conn_rx) = crate::ble::central::SENSOR_CONNECTED.receiver() else {
+            log::error!("[Screen] SENSOR_CONNECTED: no free receiver slot");
+            return;
+        };
+        let Some(mut sensor_bat_rx) = crate::ble::central::SENSOR_BATTERY.receiver() else {
+            log::error!("[Screen] SENSOR_BATTERY: no free receiver slot");
+            return;
+        };
+        let Some(mut ios_rx) = crate::ble::peripheral::IOS_CONNECTED.receiver() else {
+            log::error!("[Screen] IOS_CONNECTED: no free receiver slot");
             return;
         };
 
-        if let Err(e) = render(&mut display, None) {
+        let mut state = ScreenState {
+            gps: None,
+            crank_revs: None,
+            sensor_connected: false,
+            sensor_battery: None,
+            ios_connected: false,
+        };
+
+        if let Err(e) = render(&mut display, &state) {
             log::warn!("[Screen] {}", e);
         }
 
         loop {
-            updated_rx.changed().await;
-            let point = crate::store::peek_latest().await;
-            if let Err(e) = render(&mut display, point) {
+            match select3(
+                select(gps_rx.changed(), crank_rx.changed()),
+                select(sensor_conn_rx.changed(), sensor_bat_rx.changed()),
+                ios_rx.changed(),
+            )
+            .await
+            {
+                Either3::First(Either::First(gps)) => state.gps = Some(gps),
+                Either3::First(Either::Second(revs)) => state.crank_revs = Some(revs),
+                Either3::Second(Either::First(connected)) => state.sensor_connected = connected,
+                Either3::Second(Either::Second(bat)) => state.sensor_battery = Some(bat),
+                Either3::Third(connected) => state.ios_connected = connected,
+            }
+
+            if let Err(e) = render(&mut display, &state) {
                 log::warn!("[Screen] {}", e);
             }
         }
