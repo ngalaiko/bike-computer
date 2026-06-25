@@ -104,12 +104,12 @@ pub fn init(
     static SDC_MEM: StaticCell<sdc::Mem<8192>> = StaticCell::new();
     let sdc = sdc::Builder::new()
         .map_err(|_| Error::SdcInitFailed)?
-        .support_adv()
+        .support_ext_adv()
         .support_peripheral()
         .peripheral_count(1)
         .map_err(|_| Error::SdcInitFailed)?
+        .support_ext_scan()
         .support_central()
-        .support_scan()
         .central_count(1)
         .map_err(|_| Error::SdcInitFailed)?
         .scan_buffer_cfg(3)

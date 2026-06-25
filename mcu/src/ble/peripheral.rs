@@ -156,16 +156,13 @@ pub async fn run(stack: &Stack<'_, super::MyController, DefaultPacketPool>) {
                 log::info!("[BLE peripheral] Advertising...");
 
                 let mut peripheral = stack.peripheral();
-                let advertiser = match peripheral
-                    .advertise(
-                        &AdvertisementParameters::default(),
-                        Advertisement::ConnectableScannableUndirected {
-                            adv_data: ADV_DATA,
-                            scan_data: &[],
-                        },
-                    )
-                    .await
-                {
+                let sets = [AdvertisementSet {
+                    params: AdvertisementParameters::default(),
+                    data: Advertisement::ExtConnectableNonscannableUndirected { adv_data: ADV_DATA },
+                    address: None,
+                }];
+                let mut handles = AdvertisementSet::handles(&sets);
+                let advertiser = match peripheral.advertise_ext(&sets, &mut handles).await {
                     Ok(a) => a,
                     Err(e) => {
                         log::warn!("[BLE peripheral] advertise error: {:?}", e);

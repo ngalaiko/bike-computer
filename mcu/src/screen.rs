@@ -1,6 +1,7 @@
 use display_interface::DisplayError;
-use embassy_futures::select::{select, select3, Either, Either3};
+use embassy_futures::select::{select, select4, Either, Either4};
 use embassy_nrf::{peripherals, twim, Peri};
+use embassy_time::{Duration, Ticker};
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
     pixelcolor::BinaryColor,
@@ -40,6 +41,7 @@ struct ScreenState {
     sensor_connected: bool,
     sensor_battery: Option<u8>,
     ios_connected: bool,
+    time: Option<(u8, u8)>,
 }
 
 fn render(display: &mut Display, state: &ScreenState) -> Result<(), InternalError> {
@@ -110,6 +112,17 @@ fn render(display: &mut Display, state: &ScreenState) -> Result<(), InternalErro
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
+    // Line 5: Current time (UTC)
+    let mut line: String<8> = String::new();
+    match state.time {
+        None => write!(line, "--:--"),
+        Some((h, m)) => write!(line, "{:02}:{:02}", h, m),
+    }
+    .map_err(|_| InternalError::RenderError)?;
+    Text::with_baseline(&line, Point::new(0, 54), style, Baseline::Top)
+        .draw(display)
+        .map_err(|_| InternalError::RenderError)?;
+
     display.flush().map_err(|_| InternalError::RenderError)
 }
 
@@ -177,25 +190,39 @@ impl Screen {
             sensor_connected: false,
             sensor_battery: None,
             ios_connected: false,
+            time: None,
         };
+
+        if let crate::clock::Time::Unix { seconds } = crate::clock::now().await {
+            state.time = Some(((seconds / 3600 % 24) as u8, (seconds / 60 % 60) as u8));
+        }
 
         if let Err(e) = render(&mut display, &state) {
             log::warn!("[Screen] {}", e);
         }
 
+        let mut ticker = Ticker::every(Duration::from_secs(1));
+
         loop {
-            match select3(
+            match select4(
                 select(gps_rx.changed(), crank_rx.changed()),
                 select(sensor_conn_rx.changed(), sensor_bat_rx.changed()),
                 ios_rx.changed(),
+                ticker.next(),
             )
             .await
             {
-                Either3::First(Either::First(gps)) => state.gps = Some(gps),
-                Either3::First(Either::Second(revs)) => state.crank_revs = Some(revs),
-                Either3::Second(Either::First(connected)) => state.sensor_connected = connected,
-                Either3::Second(Either::Second(bat)) => state.sensor_battery = Some(bat),
-                Either3::Third(connected) => state.ios_connected = connected,
+                Either4::First(Either::First(gps)) => state.gps = Some(gps),
+                Either4::First(Either::Second(revs)) => state.crank_revs = Some(revs),
+                Either4::Second(Either::First(connected)) => state.sensor_connected = connected,
+                Either4::Second(Either::Second(bat)) => state.sensor_battery = Some(bat),
+                Either4::Third(connected) => state.ios_connected = connected,
+                Either4::Fourth(()) => {
+                    if let crate::clock::Time::Unix { seconds } = crate::clock::now().await {
+                        state.time =
+                            Some(((seconds / 3600 % 24) as u8, (seconds / 60 % 60) as u8));
+                    }
+                }
             }
 
             if let Err(e) = render(&mut display, &state) {

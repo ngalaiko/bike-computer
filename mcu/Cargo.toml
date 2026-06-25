@@ -11,7 +11,7 @@ static_cell = "2"
 heapless = "0.8"
 panic-halt = "1.0"
 # cpu
-cortex-m = { version = "0.7.6", features = ["inline-asm"] }
+cortex-m = { version = "0.7.6" }
 cortex-m-rt = { version = "0.7", features = ["set-vtor"] }
 # embassy — 0.10 to match nrf-sdc/trouble-host
 embassy-executor = { version = "0.10", features = ["platform-cortex-m", "executor-thread"] }

@@ -1,3 +1,4 @@
+use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 use embassy_sync::watch::Watch;
@@ -74,7 +75,7 @@ fn ad_has_uuid16(data: &[u8], target: u16) -> bool {
 pub(super) struct CscEventHandler;
 
 impl EventHandler for CscEventHandler {
-    fn on_adv_reports(&self, reports: bt_hci::param::LeAdvReportsIter<'_>) {
+    fn on_ext_adv_reports(&self, reports: LeExtAdvReportsIter<'_>) {
         for report in reports.filter_map(|r| r.ok()) {
             if ad_has_uuid16(report.data, 0x1816) {
                 SENSOR_ADDR.signal(Address::new(report.addr_kind, report.addr));
@@ -98,7 +99,7 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
             ..Default::default()
         };
 
-        let session = match scanner.scan(&scan_config).await {
+        let session = match scanner.scan_ext(&scan_config).await {
             Ok(s) => s,
             Err(e) => {
                 log::warn!("[BLE central] scan error: {:?}", e);
@@ -120,7 +121,7 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
             },
         };
 
-        let conn = match central.connect(&connect_config).await {
+        let conn = match central.connect_ext(&connect_config).await {
             Ok(c) => c,
             Err(e) => {
                 log::warn!("[BLE central] connect error: {:?}", e);
@@ -139,7 +140,7 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
                 }
             };
 
-        let (task_result, _) = embassy_futures::join::join(client.task(), async {
+        match select(client.task(), async {
             let services = match client.services_by_uuid(&CSC_SERVICE).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -221,10 +222,10 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
             )
             .await;
         })
-        .await;
-
-        if let Err(e) = task_result {
-            log::warn!("[BLE central] GATT task error: {:?}", e);
+        .await
+        {
+            Either::First(Err(e)) => log::warn!("[BLE central] GATT task error: {:?}", e),
+            _ => {}
         }
         log::info!("[BLE central] Disconnected, restarting scan");
     }

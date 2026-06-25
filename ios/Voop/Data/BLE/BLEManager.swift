@@ -55,15 +55,14 @@ final class BLEManager: NSObject {
 
 extension BLEManager: CBCentralManagerDelegate {
     nonisolated func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
+        // Extract the peripheral before crossing into the main actor — dict is [String: Any]
+        // which isn't Sendable, so it must not be captured by the assumeIsolated closure.
+        guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral],
+              let p = peripherals.first
+        else { return }
         MainActor.assumeIsolated {
-            // iOS hands back any peripheral it was managing on our behalf while we were suspended.
-            // Re-adopt it so we skip scanning and go straight to the connected state.
-            guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral],
-                  let p = peripherals.first
-            else { return }
-
             connectingPeripheral = p
-            central.connect(p, options: nil)
+            self.central?.connect(p, options: nil)
             connectionState = .connecting
         }
     }
