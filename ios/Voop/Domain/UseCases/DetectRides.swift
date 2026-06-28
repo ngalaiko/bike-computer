@@ -1,19 +1,19 @@
 import CoreLocation
 import Foundation
 
-typealias TimeAnchor = (iosDate: Date, unixSeconds: UInt32)
-
 enum DetectRides {
-    static let gapThreshold: TimeInterval = 5 * 60
-    static let minimumDistanceMeters: Double = 500
-
-    static func detect(points: [RawPoint], anchor: TimeAnchor?) -> [Ride] {
+    /// Splits raw points into time-contiguous segments and returns each as a `Ride`.
+    /// A pause longer than `gapThreshold` starts a new segment. No qualification rules
+    /// are applied here — every segment becomes a ride so the live card can show
+    /// in-progress values (slow rolling, short distance). Use `qualifies(_:settings:)`
+    /// to decide which segments count as actual rides.
+    static func detect(points: [RawPoint], gapThreshold: TimeInterval) -> [Ride] {
         guard points.count >= 2 else { return [] }
 
         var segments: [[RawPoint]] = []
         var current: [RawPoint] = [points[0]]
         for point in points.dropFirst() {
-            if let gap = elapsed(from: current.last!, to: point, anchor: anchor), gap > gapThreshold {
+            if elapsed(from: current.last!, to: point) > gapThreshold {
                 segments.append(current)
                 current = [point]
             } else {
@@ -22,12 +22,10 @@ enum DetectRides {
         }
         segments.append(current)
 
-        return segments.enumerated().compactMap { index, segment in
-            let isLast = index == segments.count - 1
+        return segments.compactMap { segment in
             guard segment.count >= 2 else { return nil }
 
-            let timestamped: [TimestampedPoint] = segment.compactMap { raw in
-                guard let date = absoluteDate(for: raw, anchor: anchor) else { return nil }
+            let timestamped: [TimestampedPoint] = segment.map { raw in
                 let p = raw.dataPoint
                 let coord = p.latMicrodeg.flatMap { lat in
                     p.lonMicrodeg.map { lon in
@@ -37,13 +35,7 @@ enum DetectRides {
                         )
                     }
                 }
-                return TimestampedPoint(date: date, coordinate: coord, cumulativeCrankRevs: p.crankRevs ?? 0)
-            }
-            guard !timestamped.isEmpty else { return nil }
-
-            // Apply distance filter to completed segments only; last segment may still be ongoing.
-            if !isLast, CalculateMetrics.totalDistance(points: timestamped) < minimumDistanceMeters {
-                return nil
+                return TimestampedPoint(date: absoluteDate(for: raw), coordinate: coord, cumulativeCrankRevs: p.crankRevs ?? 0)
             }
 
             return Ride(
@@ -55,23 +47,45 @@ enum DetectRides {
         }
     }
 
-    private static func elapsed(from a: RawPoint, to b: RawPoint, anchor: TimeAnchor?) -> TimeInterval? {
-        guard let da = absoluteDate(for: a, anchor: anchor),
-              let db = absoluteDate(for: b, anchor: anchor)
-        else { return nil }
-        return max(0, db.timeIntervalSince(da))
+    /// Whether a segment is long and fast enough to count as an actual ride.
+    static func qualifies(_ ride: Ride, settings: AppSettings) -> Bool {
+        let config = CalculateMetrics.Config(
+            gearRatio: settings.gearRatio,
+            wheelCircumferenceMeters: settings.wheelCircumferenceMeters
+        )
+        let longEnough = CalculateMetrics.cadenceDistance(points: ride.points, config: config) >= Double(settings.minDistanceMeters)
+        let fastEnough = averageCadence(points: ride.points) >= Double(settings.minCadenceRpm)
+        return longEnough && fastEnough
     }
 
-    private static func absoluteDate(for raw: RawPoint, anchor: TimeAnchor?) -> Date? {
+    private static func averageCadence(points: [TimestampedPoint]) -> Double {
+        var sum = 0.0
+        var count = 0
+        for i in 1 ..< points.count {
+            let dt = points[i].date.timeIntervalSince(points[i - 1].date)
+            guard dt > 0 else { continue }
+            let delta = Int32(points[i].cumulativeCrankRevs) - Int32(points[i - 1].cumulativeCrankRevs)
+            if delta > 0 {
+                sum += Double(delta) / dt * 60.0
+                count += 1
+            }
+        }
+        return count > 0 ? sum / Double(count) : 0
+    }
+
+    private static func elapsed(from a: RawPoint, to b: RawPoint) -> TimeInterval {
+        max(0, absoluteDate(for: b).timeIntervalSince(absoluteDate(for: a)))
+    }
+
+    /// The time used for detection and metrics: the device's GPS time when available,
+    /// otherwise the time iOS received the point. The two agree within ~1s for
+    /// live-streamed points, so `receivedAt` is a reliable fallback when there's no fix.
+    static func absoluteDate(for raw: RawPoint) -> Date {
         switch raw.dataPoint.time {
         case .unix(let s):
             return Date(timeIntervalSince1970: TimeInterval(s))
         case .monotonic:
-            guard let anchor else { return nil }
-            let delta = raw.receivedAt.timeIntervalSince(anchor.iosDate)
-            let estimated = TimeInterval(anchor.unixSeconds) + delta
-            guard estimated > 0 else { return nil }
-            return Date(timeIntervalSince1970: estimated)
+            return raw.receivedAt
         }
     }
 }

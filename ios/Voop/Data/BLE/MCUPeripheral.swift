@@ -37,6 +37,7 @@ final class MCUPeripheral: NSObject, CBPeripheralDelegate, @unchecked Sendable {
                 peripheral.setNotifyValue(true, for: char)
             case statusCharUUID:
                 peripheral.readValue(for: char)
+                peripheral.setNotifyValue(true, for: char)
             case timeSyncCharUUID:
                 var ts = UInt32(Date().timeIntervalSince1970).littleEndian
                 let data = Data(bytes: &ts, count: 4)

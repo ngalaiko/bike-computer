@@ -8,6 +8,7 @@ struct VoopApp: App {
         WindowGroup {
             ContentView()
                 .environment(appModel)
+                .environment(appModel.settings)
         }
     }
 }

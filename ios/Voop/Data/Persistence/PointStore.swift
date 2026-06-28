@@ -22,4 +22,11 @@ final class PointStore {
         let descriptor = FetchDescriptor<RawPoint>(sortBy: [SortDescriptor(\.receivedAt)])
         return try container.mainContext.fetch(descriptor)
     }
+
+    func delete(_ points: [RawPoint]) throws {
+        for point in points {
+            container.mainContext.delete(point)
+        }
+        try container.mainContext.save()
+    }
 }

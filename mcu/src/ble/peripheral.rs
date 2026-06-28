@@ -1,10 +1,10 @@
 use embassy_futures::join::join;
-use embassy_futures::select::{select4, Either4};
+use embassy_futures::select::{select, select4, Either, Either4};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_sync::watch::Watch;
-use embassy_time::{Duration, with_timeout};
+use embassy_time::{Duration, Ticker, with_timeout};
 use heapless::Deque;
 use static_cell::StaticCell;
 use trouble_host::prelude::*;
@@ -21,7 +21,7 @@ struct BikeService {
     #[characteristic(uuid = "bece0002-ede4-4b59-8c60-1ee44d963a05", notify, value = [0u8; 15])]
     stream: [u8; 15],
     /// Current device status snapshot. See voop_protocol::DeviceStatus::pack().
-    #[characteristic(uuid = "bece0003-ede4-4b59-8c60-1ee44d963a05", read, value = [100u8, 0u8, 0u8, 0xFFu8])]
+    #[characteristic(uuid = "bece0003-ede4-4b59-8c60-1ee44d963a05", read, notify, value = [100u8, 0u8, 0u8, 0xFFu8])]
     status: [u8; 4],
     /// iOS writes current unix timestamp (u32 LE) to sync the MCU clock.
     #[characteristic(uuid = "bece0004-ede4-4b59-8c60-1ee44d963a05", write, value = [0u8; 4])]
@@ -210,33 +210,65 @@ pub async fn run(stack: &Stack<'_, super::MyController, DefaultPacketPool>) {
                 let time_sync_handle = server.bike.time_sync.handle;
 
                 join(
-                    // Drain GATT events: service discovery, reads, writes, disconnect.
+                    // Drain GATT events + push status updates every second.
+                    // Uses Characteristic::notify(&gatt_conn, ...) which targets this specific
+                    // connection directly, bypassing the CCCD peer-identity lookup in
+                    // AttributeServer::notify(stack, ...) that silently no-ops when the CCCD
+                    // table entry isn't found for the connection.
                     async {
+                        let mut ticker = Ticker::every(Duration::from_secs(1));
                         loop {
-                            match gatt_conn.next().await {
-                                GattConnectionEvent::Disconnected { .. } => break,
-                                GattConnectionEvent::Gatt { event } => match event {
-                                    GattEvent::Write(ev) if ev.handle() == time_sync_handle => {
-                                        let unix_s = ev.with_data(|_offset, data| {
-                                            if data.len() >= 4 {
-                                                Some(u32::from_le_bytes([
-                                                    data[0], data[1], data[2], data[3],
-                                                ]))
-                                            } else {
-                                                None
+                            match select(gatt_conn.next(), ticker.next()).await {
+                                Either::First(GattConnectionEvent::Disconnected { .. }) => break,
+                                Either::First(GattConnectionEvent::Gatt { event }) => {
+                                    match event {
+                                        GattEvent::Write(ev)
+                                            if ev.handle() == time_sync_handle =>
+                                        {
+                                            let unix_s = ev.with_data(|_offset, data| {
+                                                if data.len() >= 4 {
+                                                    Some(u32::from_le_bytes([
+                                                        data[0], data[1], data[2], data[3],
+                                                    ]))
+                                                } else {
+                                                    None
+                                                }
+                                            });
+                                            ev.accept().ok();
+                                            if let Some(t) = unix_s {
+                                                log::info!(
+                                                    "[BLE peripheral] Time sync: {}",
+                                                    t
+                                                );
+                                                crate::clock::set(t).await;
                                             }
-                                        });
-                                        ev.accept().ok();
-                                        if let Some(t) = unix_s {
-                                            log::info!("[BLE peripheral] Time sync: {}", t);
-                                            crate::clock::set(t).await;
+                                        }
+                                        _ => {
+                                            event.accept().ok();
                                         }
                                     }
-                                    _ => {
-                                        event.accept().ok();
-                                    }
-                                },
-                                _ => {}
+                                }
+                                Either::First(_) => {}
+                                Either::Second(()) => {
+                                    let status = {
+                                        let ss = SENSOR_STATE.lock().await;
+                                        DeviceStatus {
+                                            mcu_battery: BatteryStatus {
+                                                percent: 100,
+                                                state: BatteryState::Charging,
+                                            },
+                                            sensor_connected: ss.connected,
+                                            sensor_battery: ss.battery,
+                                        }
+                                    };
+                                    let packed = status.pack();
+                                    // store=true updates the readable attribute value too.
+                                    let _ = server
+                                        .bike
+                                        .status
+                                        .notify(&gatt_conn, &packed, true)
+                                        .await;
+                                }
                             }
                         }
                     },

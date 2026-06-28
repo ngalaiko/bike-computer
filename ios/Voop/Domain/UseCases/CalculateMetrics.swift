@@ -10,6 +10,17 @@ struct RideMetrics {
     let maxCadenceRpm: Double
 }
 
+/// One moment in a ride's time series: where you were, and how fast you were going
+/// and pedaling. `elapsed` is seconds since the ride started. This is the single
+/// source that feeds the route gradient, the speed/cadence chart, and per-km splits.
+struct RideSample: Identifiable {
+    let id: Int
+    let elapsed: TimeInterval
+    let coordinate: CLLocationCoordinate2D?
+    let speedKph: Double
+    let cadenceRpm: Double
+}
+
 enum CalculateMetrics {
     /// Gear ratio × wheel circumference in meters, used to convert crank revs to distance.
     /// Defaults: 46/16 chainring, 700×25c wheel (2.105 m circumference).
@@ -18,50 +29,72 @@ enum CalculateMetrics {
         var wheelCircumferenceMeters: Double = 2.105
     }
 
-    static func totalDistance(points: [TimestampedPoint]) -> Double {
+    /// Distance derived from crank revolutions, gear ratio, and wheel circumference.
+    /// Sums forward crank-rev deltas to ignore counter resets/wraps.
+    static func cadenceDistance(points: [TimestampedPoint], config: Config = .init()) -> Double {
+        guard points.count >= 2 else { return 0 }
         var total = 0.0
         for i in 1 ..< points.count {
-            guard
-                let c1 = points[i - 1].coordinate,
-                let c2 = points[i].coordinate
-            else { continue }
-            let loc1 = CLLocation(latitude: c1.latitude, longitude: c1.longitude)
-            let loc2 = CLLocation(latitude: c2.latitude, longitude: c2.longitude)
-            total += loc1.distance(from: loc2)
+            let revDelta = Int32(points[i].cumulativeCrankRevs) - Int32(points[i - 1].cumulativeCrankRevs)
+            if revDelta > 0 {
+                total += Double(revDelta) * config.gearRatio * config.wheelCircumferenceMeters
+            }
         }
         return total
     }
 
     static func compute(ride: Ride, config: Config = .init()) -> RideMetrics {
-        let points = ride.points
-        let distance = totalDistance(points: points)
-        let duration = ride.duration
-
-        var speedsSamples: [Double] = []
-        var cadenceSamples: [Double] = []
-
-        for i in 1 ..< points.count {
-            let dt = points[i].date.timeIntervalSince(points[i - 1].date)
-            guard dt > 0 else { continue }
-
-            let revDelta = Int32(points[i].cumulativeCrankRevs) - Int32(points[i - 1].cumulativeCrankRevs)
-            if revDelta > 0 {
-                let cadenceRpm = Double(revDelta) / dt * 60.0
-                cadenceSamples.append(cadenceRpm)
-
-                let distanceM = Double(revDelta) * config.gearRatio * config.wheelCircumferenceMeters
-                let speedKph = (distanceM / dt) * 3.6
-                speedsSamples.append(speedKph)
-            }
+        let series = samples(ride: ride, config: config)
+        // Averages count only intervals where the crank actually advanced (a coast
+        // reads as 0); maxes scan the whole series. This preserves the original
+        // behavior while keeping `samples` the one place the speed formula lives.
+        let moving = series.filter { $0.cadenceRpm > 0 }
+        func mean(_ values: [Double]) -> Double {
+            values.isEmpty ? 0 : values.reduce(0, +) / Double(values.count)
         }
 
         return RideMetrics(
-            totalDistanceMeters: distance,
-            durationSeconds: duration,
-            averageSpeedKph: speedsSamples.isEmpty ? 0 : speedsSamples.reduce(0, +) / Double(speedsSamples.count),
-            maxSpeedKph: speedsSamples.max() ?? 0,
-            averageCadenceRpm: cadenceSamples.isEmpty ? 0 : cadenceSamples.reduce(0, +) / Double(cadenceSamples.count),
-            maxCadenceRpm: cadenceSamples.max() ?? 0
+            totalDistanceMeters: cadenceDistance(points: ride.points, config: config),
+            durationSeconds: ride.duration,
+            averageSpeedKph: mean(moving.map(\.speedKph)),
+            maxSpeedKph: series.map(\.speedKph).max() ?? 0,
+            averageCadenceRpm: mean(moving.map(\.cadenceRpm)),
+            maxCadenceRpm: series.map(\.cadenceRpm).max() ?? 0
         )
+    }
+
+    /// Per-point time series of speed and cadence, derived the same way as the metrics
+    /// (crank-rev deltas → distance → speed). Index 0 is the ride start with no motion
+    /// yet; each later sample covers the interval ending at that point. Intervals with
+    /// no crank advance read as 0 — a coast — which keeps the chart continuous and honest.
+    static func samples(ride: Ride, config: Config = .init()) -> [RideSample] {
+        let points = ride.points
+        guard let start = points.first?.date else { return [] }
+
+        var result: [RideSample] = [
+            RideSample(id: 0, elapsed: 0, coordinate: points[0].coordinate, speedKph: 0, cadenceRpm: 0),
+        ]
+
+        for i in 1 ..< points.count {
+            let dt = points[i].date.timeIntervalSince(points[i - 1].date)
+            var speedKph = 0.0
+            var cadenceRpm = 0.0
+            if dt > 0 {
+                let revDelta = Int32(points[i].cumulativeCrankRevs) - Int32(points[i - 1].cumulativeCrankRevs)
+                if revDelta > 0 {
+                    cadenceRpm = Double(revDelta) / dt * 60.0
+                    let distanceM = Double(revDelta) * config.gearRatio * config.wheelCircumferenceMeters
+                    speedKph = (distanceM / dt) * 3.6
+                }
+            }
+            result.append(RideSample(
+                id: i,
+                elapsed: points[i].date.timeIntervalSince(start),
+                coordinate: points[i].coordinate,
+                speedKph: speedKph,
+                cadenceRpm: cadenceRpm
+            ))
+        }
+        return result
     }
 }

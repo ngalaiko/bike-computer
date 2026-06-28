@@ -88,11 +88,12 @@ fn render(display: &mut Display, state: &ScreenState) -> Result<(), InternalErro
         .draw(display)
         .map_err(|_| InternalError::RenderError)?;
 
-    // Line 3: Sensor battery
+    // Line 3: Sensor connection + battery
     let mut line: String<16> = String::new();
-    match state.sensor_battery {
-        None => write!(line, "SNS: ---"),
-        Some(b) => write!(line, "SNS: {}%", b),
+    match (state.sensor_connected, state.sensor_battery) {
+        (false, _) => write!(line, "SNS: ---"),
+        (true, None) => write!(line, "SNS: OK"),
+        (true, Some(b)) => write!(line, "SNS: {}%", b),
     }
     .map_err(|_| InternalError::RenderError)?;
     Text::with_baseline(&line, Point::new(0, 33), style, Baseline::Top)

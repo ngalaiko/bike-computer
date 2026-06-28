@@ -185,7 +185,18 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
                 else {
                     break 'bat None;
                 };
-                client.subscribe(&bat_char, false).await.ok()
+                let listener = match client.subscribe(&bat_char, false).await {
+                    Ok(l) => l,
+                    Err(_) => break 'bat None,
+                };
+                // Read current battery level immediately — Garmin doesn't push proactively.
+                let mut buf = [0u8; 1];
+                if let Ok(n) = client.read_characteristic(&bat_char, &mut buf).await {
+                    if n > 0 {
+                        SENSOR_BATTERY.sender().send(buf[0]);
+                    }
+                }
+                Some(listener)
             };
 
             log::info!("[BLE central] Subscribed to CSC measurement");
