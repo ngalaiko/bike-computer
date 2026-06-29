@@ -9,7 +9,7 @@ struct MainView: View {
     var body: some View {
         NavigationStack {
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                let ongoing = ongoingRide(at: ctx.date)
+                let ongoing = appModel.ongoingRide(at: ctx.date)
                 let completed = completedRides(at: ctx.date)
                 List {
                     Section {
@@ -91,17 +91,9 @@ struct MainView: View {
         return false
     }
 
-    private func ongoingRide(at now: Date) -> Ride? {
-        guard let last = appModel.detectedRides.last,
-              now.timeIntervalSince(last.endDate) < settings.gapThreshold
-        else { return nil }
-        return last
-    }
-
     private func completedRides(at now: Date) -> [Ride] {
         var rides = appModel.detectedRides
-        if let last = rides.last,
-           now.timeIntervalSince(last.endDate) < settings.gapThreshold {
+        if appModel.ongoingRide(at: now) != nil {
             rides = Array(rides.dropLast())
         }
         return rides.filter { DetectRides.qualifies($0, settings: settings) }

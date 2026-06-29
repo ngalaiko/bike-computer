@@ -12,7 +12,9 @@ struct ContentView: View {
             }
         }
         .task {
-            await appModel.startReceiving()
+            async let receive: Void = appModel.startReceiving()
+            async let heartbeat: Void = appModel.runActivityHeartbeat()
+            _ = await (receive, heartbeat)
         }
     }
 }

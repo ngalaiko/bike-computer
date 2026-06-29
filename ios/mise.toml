@@ -5,7 +5,7 @@ swiftformat = "0.61.1"
 
 [tasks.generate]
 description = "Generate Xcode project from project.yml"
-sources = ["project.yml", "Voop/**/*.swift"]
+sources = ["project.yml", "Voop/**/*.swift", "VoopWidget/**/*.swift"]
 outputs = ["Voop.xcodeproj/project.pbxproj"]
 run = "xcodegen generate --spec project.yml"
 

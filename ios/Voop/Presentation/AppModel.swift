@@ -9,6 +9,7 @@ final class AppModel {
     let health: HealthKitService
     let pointStore: PointStore
     let settings: AppSettings
+    let activityController = RideActivityController()
 
     private(set) var detectedRides: [Ride] = []
     private(set) var isDevicePaired: Bool = UserDefaults.standard.bool(forKey: "isDevicePaired")
@@ -56,7 +57,51 @@ final class AppModel {
             }
             try? pointStore.insert(point)
             redetect()
+            await reconcileActivity()
         }
+    }
+
+    /// The ride currently in progress: the most recent segment, if the stop-pause gap since its
+    /// last point hasn't elapsed yet. Shared by the live card (`MainView`) and the Live Activity.
+    func ongoingRide(at now: Date = .now) -> Ride? {
+        guard let last = detectedRides.last,
+              now.timeIntervalSince(last.endDate) < settings.gapThreshold
+        else { return nil }
+        return last
+    }
+
+    /// Drives the Live Activity to match the ongoing ride (or ends it when none is in progress).
+    func reconcileActivity(at now: Date = .now) async {
+        guard let ride = ongoingRide(at: now) else {
+            await activityController.reconcile(rideStartDate: nil, rideEndDate: nil, state: nil)
+            return
+        }
+        let config = CalculateMetrics.Config(
+            gearRatio: settings.gearRatio,
+            wheelCircumferenceMeters: settings.wheelCircumferenceMeters
+        )
+        let distance = CalculateMetrics.cadenceDistance(points: ride.points, config: config)
+        // Current speed from the live cadence, using the same gear/wheel formula as `samples`.
+        let speedKph = Double(currentRpm) / 60.0 * config.gearRatio * config.wheelCircumferenceMeters * 3.6
+        let state = RideActivityAttributes.ContentState(
+            distanceMeters: distance,
+            currentSpeedKph: speedKph,
+            currentCadenceRpm: currentRpm,
+            elapsedInterval: ride.startDate ... .distantFuture,
+            isFinished: false
+        )
+        await activityController.reconcile(rideStartDate: ride.startDate, rideEndDate: ride.endDate, state: state)
+    }
+
+    /// Wall-clock loop that keeps the Live Activity honest. The data stream can't detect a ride
+    /// *ending* (points stop arriving when the rider stops), so this periodic tick is what ends it.
+    func runActivityHeartbeat() async {
+        activityController.adoptExisting()
+        while !Task.isCancelled {
+            await reconcileActivity()
+            try? await Task.sleep(for: .seconds(3))
+        }
+        await activityController.end()
     }
 
     /// Every stored raw point as CSV, including the absolute date used for detection.

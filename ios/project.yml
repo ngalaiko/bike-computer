@@ -30,3 +30,23 @@ targets:
     dependencies:
       - framework: VoopProtocol.xcframework
         embed: false
+      - target: VoopWidget
+
+  VoopWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: VoopWidget
+      - path: Voop/Shared/RideActivityAttributes.swift
+    attributes:
+      DevelopmentTeam: 5S3AM79MK3
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.galaiko.voop.widget
+        DEVELOPMENT_TEAM: 5S3AM79MK3
+        INFOPLIST_FILE: VoopWidget/Info.plist
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework

@@ -20,13 +20,45 @@
 		59AA7C6458C1C44DF07C2FF1 /* BLEManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9902762718B312424DF218CD /* BLEManager.swift */; };
 		667D6CD52721E98594176401 /* DetectRides.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8B9CC477C9EF0855712CF5F /* DetectRides.swift */; };
 		6E63E6E480C82A9919D13F3A /* VoopApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2323F51F0C727CAB37EEDA1B /* VoopApp.swift */; };
+		75F8106462561E8882514BA6 /* RideActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81860989184021A98870F32E /* RideActivityController.swift */; };
+		7EDAAF4AF7F3255174653E7C /* VoopWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F892412C642664C1D4C638EB /* VoopWidgetBundle.swift */; };
 		7FE8E859B8D64CE107B65DCB /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B63B75A17284FF9B2A047C2 /* AppSettings.swift */; };
 		84964D36EACCC4F4F0BEA90F /* CalculateMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379D9CDF976DA71F4375E6B0 /* CalculateMetrics.swift */; };
+		A22A26FA945FEBD9E1669896 /* VoopWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A7B2BE52FEA9F3E8AA677B32 /* VoopWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A52233CA93AC98332F43FBFD /* RawPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A269EAFA2F1F61A90F72B6 /* RawPoint.swift */; };
+		AA27EC83D52A6F2E65C6ABBB /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A24DDDC06EF51D40A1C8CB2 /* SwiftUI.framework */; };
+		AFDFA9C5984D293F70EDBCDD /* RideLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3602E80E9C53F626AA8573 /* RideLiveActivity.swift */; };
+		B0D3B9947B45DAE91E59B2DA /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CDCADF750CDB0C0C3CDE07BC /* WidgetKit.framework */; };
+		BF3CB19613C9A1DD066852C3 /* RideActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D319CD2F358B8FBFBA796AEC /* RideActivityAttributes.swift */; };
 		BFC659FED8FE5F2233C5D9DE /* PointStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3766BD67795C9B515F2486 /* PointStore.swift */; };
 		D1E0A1862F5CBFBCEA68DE9D /* MCUPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C6132BE16B2FC6F0F3FC3E /* MCUPeripheral.swift */; };
 		E6FBA534D5E9C839C8D0BAF3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2CD3324FBDA929D8A315D4B /* SettingsView.swift */; };
+		FCAEFF74C16F8E7763B317F1 /* RideActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D319CD2F358B8FBFBA796AEC /* RideActivityAttributes.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4FE90F2621DE209629FD9332 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C7485D87195BE535D587E4BC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E2BED4651B7459A641F1C9BF;
+			remoteInfo = VoopWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		64375C08951F752D4A918944 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A22A26FA945FEBD9E1669896 /* VoopWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0B95F2B14E8398297E4B3361 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -34,6 +66,8 @@
 		2061BD96C2B27FDB340E1FAF /* RideDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideDetailView.swift; sourceTree = "<group>"; };
 		2323F51F0C727CAB37EEDA1B /* VoopApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoopApp.swift; sourceTree = "<group>"; };
 		28A269EAFA2F1F61A90F72B6 /* RawPoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawPoint.swift; sourceTree = "<group>"; };
+		2A24DDDC06EF51D40A1C8CB2 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		2B3602E80E9C53F626AA8573 /* RideLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideLiveActivity.swift; sourceTree = "<group>"; };
 		2BFE515DA543FD8955F31EE7 /* Ride.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ride.swift; sourceTree = "<group>"; };
 		2CB39FB657C4BB45CCBC85AA /* voop_protocolFFI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = voop_protocolFFI.h; sourceTree = "<group>"; };
 		34C6132BE16B2FC6F0F3FC3E /* MCUPeripheral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCUPeripheral.swift; sourceTree = "<group>"; };
@@ -42,17 +76,23 @@
 		4562ED23BD9A6DD6F7C9A43E /* DeviceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRepository.swift; sourceTree = "<group>"; };
 		6E50F4C870EFEFAF5391D026 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7B63B75A17284FF9B2A047C2 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		81860989184021A98870F32E /* RideActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideActivityController.swift; sourceTree = "<group>"; };
 		8CB05AFFA9C5717810E1C5B3 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		9902762718B312424DF218CD /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
 		A2CD3324FBDA929D8A315D4B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A7B2BE52FEA9F3E8AA677B32 /* VoopWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = VoopWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB3766BD67795C9B515F2486 /* PointStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointStore.swift; sourceTree = "<group>"; };
 		AFA80943A78641EA15194756 /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		B8B9CC477C9EF0855712CF5F /* DetectRides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectRides.swift; sourceTree = "<group>"; };
 		BDB4DA0921D0FA995CF137E1 /* Voop.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Voop.entitlements; sourceTree = "<group>"; };
 		C5AA541D90D10A891DA9ACC6 /* voop_protocolFFI.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = voop_protocolFFI.modulemap; sourceTree = "<group>"; };
 		CB79EB307182355072E44A19 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		CDCADF750CDB0C0C3CDE07BC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		D319CD2F358B8FBFBA796AEC /* RideActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideActivityAttributes.swift; sourceTree = "<group>"; };
 		E2D6A52B78279D30A374F2BA /* VoopProtocol.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = VoopProtocol.xcframework; sourceTree = "<group>"; };
+		F211E2A8FFA5DD20D18762C5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F22FF732CA019D0D7F9529D6 /* voop_protocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = voop_protocol.swift; sourceTree = "<group>"; };
+		F892412C642664C1D4C638EB /* VoopWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoopWidgetBundle.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +101,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				10B7C2FDCD242C9B99E18CDF /* VoopProtocol.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8425A020DAF05C01A64A71FD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B0D3B9947B45DAE91E59B2DA /* WidgetKit.framework in Frameworks */,
+				AA27EC83D52A6F2E65C6ABBB /* SwiftUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				EBA973C8A458E9A4A1F4316B /* Voop */,
+				BD1B5BD60751A90450DC4144 /* VoopWidget */,
 				7DDD5866D678B1EFF379A986 /* Frameworks */,
 				D4FDE2A5F7AFDF60C0AAC327 /* Products */,
 			);
@@ -89,6 +139,7 @@
 			children = (
 				0B95F2B14E8398297E4B3361 /* AppModel.swift */,
 				3F99DEC45EEEC577A6BF3754 /* MainView.swift */,
+				81860989184021A98870F32E /* RideActivityController.swift */,
 				A2CD3324FBDA929D8A315D4B /* SettingsView.swift */,
 				CCE22CF6F9F339C920737614 /* Rides */,
 				02FC14204C4F3956B1E3E2EA /* Setup */,
@@ -104,6 +155,14 @@
 				C86B88CA3E3A3F6F8DA33BFE /* Persistence */,
 			);
 			path = Data;
+			sourceTree = "<group>";
+		};
+		4A0F99B105F3EEA69ACA7AC7 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D319CD2F358B8FBFBA796AEC /* RideActivityAttributes.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		4A6A85108F87002D7279807B /* Models */ = {
@@ -127,7 +186,9 @@
 		7DDD5866D678B1EFF379A986 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2A24DDDC06EF51D40A1C8CB2 /* SwiftUI.framework */,
 				E2D6A52B78279D30A374F2BA /* VoopProtocol.xcframework */,
+				CDCADF750CDB0C0C3CDE07BC /* WidgetKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -148,6 +209,16 @@
 				F0A9E51F34E38F3D00356691 /* UseCases */,
 			);
 			path = Domain;
+			sourceTree = "<group>";
+		};
+		BD1B5BD60751A90450DC4144 /* VoopWidget */ = {
+			isa = PBXGroup;
+			children = (
+				F211E2A8FFA5DD20D18762C5 /* Info.plist */,
+				2B3602E80E9C53F626AA8573 /* RideLiveActivity.swift */,
+				F892412C642664C1D4C638EB /* VoopWidgetBundle.swift */,
+			);
+			path = VoopWidget;
 			sourceTree = "<group>";
 		};
 		C86B88CA3E3A3F6F8DA33BFE /* Persistence */ = {
@@ -181,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				125F26F0973B842A1480B272 /* Voop.app */,
+				A7B2BE52FEA9F3E8AA677B32 /* VoopWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -202,6 +274,7 @@
 				A4F4D6F9C397950542186591 /* Domain */,
 				F7E10089D2A8242F0F22D9F1 /* Generated */,
 				408D2C07706A8894D1EDEDD2 /* Presentation */,
+				4A0F99B105F3EEA69ACA7AC7 /* Shared */,
 			);
 			path = Voop;
 			sourceTree = "<group>";
@@ -234,10 +307,12 @@
 			buildPhases = (
 				B7A299254345AA20C63C71D4 /* Sources */,
 				1F33D180790FAF47BB944455 /* Frameworks */,
+				64375C08951F752D4A918944 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D88961399F24D1430A4CDE8F /* PBXTargetDependency */,
 			);
 			name = Voop;
 			packageProductDependencies = (
@@ -245,6 +320,24 @@
 			productName = Voop;
 			productReference = 125F26F0973B842A1480B272 /* Voop.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E2BED4651B7459A641F1C9BF /* VoopWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 06BE7B14FC055482F8A41F02 /* Build configuration list for PBXNativeTarget "VoopWidget" */;
+			buildPhases = (
+				949142C8353E051CB5A9FC50 /* Sources */,
+				8425A020DAF05C01A64A71FD /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VoopWidget;
+			packageProductDependencies = (
+			);
+			productName = VoopWidget;
+			productReference = A7B2BE52FEA9F3E8AA677B32 /* VoopWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -256,6 +349,10 @@
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					61981F410A296D0A15576BC4 = {
+						DevelopmentTeam = 5S3AM79MK3;
+						ProvisioningStyle = Automatic;
+					};
+					E2BED4651B7459A641F1C9BF = {
 						DevelopmentTeam = 5S3AM79MK3;
 						ProvisioningStyle = Automatic;
 					};
@@ -276,11 +373,22 @@
 			projectRoot = "";
 			targets = (
 				61981F410A296D0A15576BC4 /* Voop */,
+				E2BED4651B7459A641F1C9BF /* VoopWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		949142C8353E051CB5A9FC50 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCAEFF74C16F8E7763B317F1 /* RideActivityAttributes.swift in Sources */,
+				AFDFA9C5984D293F70EDBCDD /* RideLiveActivity.swift in Sources */,
+				7EDAAF4AF7F3255174653E7C /* VoopWidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B7A299254345AA20C63C71D4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -298,6 +406,8 @@
 				BFC659FED8FE5F2233C5D9DE /* PointStore.swift in Sources */,
 				A52233CA93AC98332F43FBFD /* RawPoint.swift in Sources */,
 				24240449DE15B08DB4014DC5 /* Ride.swift in Sources */,
+				BF3CB19613C9A1DD066852C3 /* RideActivityAttributes.swift in Sources */,
+				75F8106462561E8882514BA6 /* RideActivityController.swift in Sources */,
 				510A5B1169FFE4FECE6A5A62 /* RideDetailView.swift in Sources */,
 				E6FBA534D5E9C839C8D0BAF3 /* SettingsView.swift in Sources */,
 				2688E12FFD1A33FC898E61A4 /* SetupView.swift in Sources */,
@@ -307,6 +417,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D88961399F24D1430A4CDE8F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E2BED4651B7459A641F1C9BF /* VoopWidget */;
+			targetProxy = 4FE90F2621DE209629FD9332 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		15774C275F7EA8C32AF42CED /* Debug */ = {
@@ -331,6 +449,24 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
+		};
+		3235B5F165673E366F8D6CC0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5S3AM79MK3;
+				INFOPLIST_FILE = VoopWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.galaiko.voop.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
 		};
 		5AE53E3DB54592020840A6F6 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -478,9 +614,36 @@
 			};
 			name = Release;
 		};
+		E729ACE338A6537773E88AB2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5S3AM79MK3;
+				INFOPLIST_FILE = VoopWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.galaiko.voop.widget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		06BE7B14FC055482F8A41F02 /* Build configuration list for PBXNativeTarget "VoopWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E729ACE338A6537773E88AB2 /* Debug */,
+				3235B5F165673E366F8D6CC0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		249069781B119E2AA511B98E /* Build configuration list for PBXNativeTarget "Voop" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
