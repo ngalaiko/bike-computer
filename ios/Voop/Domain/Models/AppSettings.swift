@@ -47,18 +47,30 @@ final class AppSettings {
         ("26\"", 559),
     ]
 
-    static let tirePresets: [(label: String, bsd: Int, width: Int)] = [
-        ("700×25c", 622, 25),
-        ("700×28c", 622, 28),
-        ("700×32c", 622, 32),
-        ("650×47b", 584, 47),
+    struct TirePreset {
+        let label: String
+        let bsd: Int
+        let width: Int
+    }
+
+    static let tirePresets: [TirePreset] = [
+        TirePreset(label: "700×25c", bsd: 622, width: 25),
+        TirePreset(label: "700×28c", bsd: 622, width: 28),
+        TirePreset(label: "700×32c", bsd: 622, width: 32),
+        TirePreset(label: "650×47b", bsd: 584, width: 47),
     ]
 
-    static let gearPresets: [(label: String, chainring: Int, cog: Int)] = [
-        ("46×16", 46, 16),
-        ("48×17", 48, 17),
-        ("44×16", 44, 16),
-        ("46×18", 46, 18),
+    struct GearPreset {
+        let label: String
+        let chainring: Int
+        let cog: Int
+    }
+
+    static let gearPresets: [GearPreset] = [
+        GearPreset(label: "46×16", chainring: 46, cog: 16),
+        GearPreset(label: "48×17", chainring: 48, cog: 17),
+        GearPreset(label: "44×16", chainring: 44, cog: 16),
+        GearPreset(label: "46×18", chainring: 46, cog: 18),
     ]
 
     init() {

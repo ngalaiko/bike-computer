@@ -20,14 +20,29 @@ final class AppModel {
     /// infrequent, so this is the reliable signal that the sensor is actually live.
     private(set) var lastCadenceDate: Date?
 
+    /// Cadence counts as "live" only if a reading arrived within this window. The MCU emits a
+    /// point only when the crank moves, so a silent stream means the rider coasted/stopped — the
+    /// last rpm must not linger as if they were still pedaling.
+    static let liveCadenceTimeout: TimeInterval = 5
+
     private var lastCrankPoint: (revs: UInt16, date: Date)?
+
+    /// In-memory mirror of every stored point, kept in detection-time order. Detection reads
+    /// this instead of re-fetching the whole store from disk on every incoming point.
+    private var allPoints: [RawPoint] = []
+    /// Points inserted into the store but not yet flushed to disk; saved in batches.
+    private var unsavedCount = 0
+    private static let saveBatchSize = 10
 
     init() {
         ble = BLEManager()
         health = HealthKitService()
-        pointStore = (try? PointStore()) ?? { fatalError("Failed to create PointStore") }()
+        pointStore = PointStore.openOrRecover()
         settings = AppSettings()
-        redetect()
+        reloadPoints()
+        // Adopt any activity left running from a prior session *before* the first point can
+        // arrive and drive `reconcileActivity`, so we never orphan it and start a duplicate.
+        activityController.adoptExisting()
     }
 
     func markDevicePaired() {
@@ -55,10 +70,27 @@ final class AppModel {
                     longitude: Double(lon) / 1_000_000.0
                 )
             }
-            try? pointStore.insert(point)
+            // Live points arrive newest-last, so appending keeps `allPoints` in detection-time
+            // order. Persist in batches rather than fsyncing the store on every point.
+            allPoints.append(pointStore.insert(point))
+            unsavedCount += 1
+            if unsavedCount >= Self.saveBatchSize { flush() }
             redetect()
             await reconcileActivity()
         }
+    }
+
+    /// Current cadence, or 0 when the stream has gone quiet (see `liveCadenceTimeout`).
+    func liveRpm(at now: Date = .now) -> Int {
+        guard let last = lastCadenceDate, now.timeIntervalSince(last) < Self.liveCadenceTimeout else { return 0 }
+        return currentRpm
+    }
+
+    /// Flush any inserted-but-unsaved points to disk. Cheap when there's nothing pending.
+    private func flush() {
+        guard unsavedCount > 0 else { return }
+        try? pointStore.save()
+        unsavedCount = 0
     }
 
     /// The ride currently in progress: the most recent segment, if the stop-pause gap since its
@@ -81,12 +113,14 @@ final class AppModel {
             wheelCircumferenceMeters: settings.wheelCircumferenceMeters
         )
         let distance = CalculateMetrics.cadenceDistance(points: ride.points, config: config)
-        // Current speed from the live cadence, using the same gear/wheel formula as `samples`.
-        let speedKph = Double(currentRpm) / 60.0 * config.gearRatio * config.wheelCircumferenceMeters * 3.6
+        // Current speed from the live cadence (0 once the stream goes quiet), using the same
+        // gear/wheel formula as `samples`.
+        let rpm = liveRpm(at: now)
+        let speedKph = Double(rpm) / 60.0 * config.gearRatio * config.wheelCircumferenceMeters * 3.6
         let state = RideActivityAttributes.ContentState(
             distanceMeters: distance,
             currentSpeedKph: speedKph,
-            currentCadenceRpm: currentRpm,
+            currentCadenceRpm: rpm,
             elapsedInterval: ride.startDate ... .distantFuture,
             isFinished: false
         )
@@ -96,17 +130,20 @@ final class AppModel {
     /// Wall-clock loop that keeps the Live Activity honest. The data stream can't detect a ride
     /// *ending* (points stop arriving when the rider stops), so this periodic tick is what ends it.
     func runActivityHeartbeat() async {
-        activityController.adoptExisting()
         while !Task.isCancelled {
+            // Also acts as the batch-save heartbeat, so pending points are durable within a few
+            // seconds even on a slow trickle that never reaches `saveBatchSize`.
+            flush()
             await reconcileActivity()
             try? await Task.sleep(for: .seconds(3))
         }
+        flush()
         await activityController.end()
     }
 
     /// Every stored raw point as CSV, including the absolute date used for detection.
     func exportCSV() -> String {
-        let points = (try? pointStore.fetchAll()) ?? []
+        let points = allPoints
         var lines = ["index,receivedAt,absoluteDate,unixSeconds,monotonicMs,latMicrodeg,lonMicrodeg,crankRevs"]
         for (index, p) in points.enumerated() {
             let absolute = DetectRides.absoluteDate(for: p).ISO8601Format()
@@ -134,17 +171,26 @@ final class AppModel {
 
     /// Removes the raw points that make up a ride, then re-derives the ride list.
     func deleteRide(_ ride: Ride) {
-        let all = (try? pointStore.fetchAll()) ?? []
-        let toDelete = all.filter { raw in
+        let toDelete = allPoints.filter { raw in
             let date = DetectRides.absoluteDate(for: raw)
             return date >= ride.startDate && date <= ride.endDate
         }
         try? pointStore.delete(toDelete)
+        let removed = Set(toDelete.map(ObjectIdentifier.init))
+        allPoints.removeAll { removed.contains(ObjectIdentifier($0)) }
+        redetect()
+    }
+
+    /// Loads the full store into the in-memory mirror, ordered by detection time. Sorting by
+    /// `absoluteDate` (GPS time when present, else arrival time) keeps the mirror consistent with
+    /// how `DetectRides` segments and times points — the store's own `receivedAt` order can differ.
+    private func reloadPoints() {
+        allPoints = ((try? pointStore.fetchAll()) ?? [])
+            .sorted { DetectRides.absoluteDate(for: $0) < DetectRides.absoluteDate(for: $1) }
         redetect()
     }
 
     private func redetect() {
-        let points = (try? pointStore.fetchAll()) ?? []
-        detectedRides = DetectRides.detect(points: points, gapThreshold: settings.gapThreshold)
+        detectedRides = DetectRides.detect(points: allPoints, gapThreshold: settings.gapThreshold)
     }
 }

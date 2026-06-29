@@ -29,7 +29,7 @@ struct RideDetailView: View {
             Section("Summary") {
                 VStack(spacing: 10) {
                     // When the ride ran, then the two numbers that carry the screen.
-                    Text("\(ride.startDate.formatted(date: .omitted, time: .shortened)) – \(ride.endDate.formatted(date: .omitted, time: .shortened))")
+                    Text(ride.clockRange)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 

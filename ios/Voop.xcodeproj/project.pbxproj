@@ -13,7 +13,6 @@
 		22BA344A7633874B135E525E /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F99DEC45EEEC577A6BF3754 /* MainView.swift */; };
 		24240449DE15B08DB4014DC5 /* Ride.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BFE515DA543FD8955F31EE7 /* Ride.swift */; };
 		2688E12FFD1A33FC898E61A4 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA80943A78641EA15194756 /* SetupView.swift */; };
-		280F27C8B58CE779B970629A /* DeviceRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4562ED23BD9A6DD6F7C9A43E /* DeviceRepository.swift */; };
 		2B773EFDE1CD771860A0A90A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E50F4C870EFEFAF5391D026 /* ContentView.swift */; };
 		510A5B1169FFE4FECE6A5A62 /* RideDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2061BD96C2B27FDB340E1FAF /* RideDetailView.swift */; };
 		5734E48308D55ECEC81824AB /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B95F2B14E8398297E4B3361 /* AppModel.swift */; };
@@ -24,6 +23,7 @@
 		7EDAAF4AF7F3255174653E7C /* VoopWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F892412C642664C1D4C638EB /* VoopWidgetBundle.swift */; };
 		7FE8E859B8D64CE107B65DCB /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B63B75A17284FF9B2A047C2 /* AppSettings.swift */; };
 		84964D36EACCC4F4F0BEA90F /* CalculateMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379D9CDF976DA71F4375E6B0 /* CalculateMetrics.swift */; };
+		9EE25AC7CEEEB3AA002CE9A7 /* DetectRidesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BC4FC3832AAE2EFFA6B7782 /* DetectRidesTests.swift */; };
 		A22A26FA945FEBD9E1669896 /* VoopWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A7B2BE52FEA9F3E8AA677B32 /* VoopWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A52233CA93AC98332F43FBFD /* RawPoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A269EAFA2F1F61A90F72B6 /* RawPoint.swift */; };
 		AA27EC83D52A6F2E65C6ABBB /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2A24DDDC06EF51D40A1C8CB2 /* SwiftUI.framework */; };
@@ -31,12 +31,20 @@
 		B0D3B9947B45DAE91E59B2DA /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CDCADF750CDB0C0C3CDE07BC /* WidgetKit.framework */; };
 		BF3CB19613C9A1DD066852C3 /* RideActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D319CD2F358B8FBFBA796AEC /* RideActivityAttributes.swift */; };
 		BFC659FED8FE5F2233C5D9DE /* PointStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3766BD67795C9B515F2486 /* PointStore.swift */; };
+		D182ED6B62B5723E06DDE5EF /* CalculateMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2B0D8169BCE14088D32E10 /* CalculateMetricsTests.swift */; };
 		D1E0A1862F5CBFBCEA68DE9D /* MCUPeripheral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C6132BE16B2FC6F0F3FC3E /* MCUPeripheral.swift */; };
 		E6FBA534D5E9C839C8D0BAF3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2CD3324FBDA929D8A315D4B /* SettingsView.swift */; };
 		FCAEFF74C16F8E7763B317F1 /* RideActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D319CD2F358B8FBFBA796AEC /* RideActivityAttributes.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		46837524FE4C4A8640C451D3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C7485D87195BE535D587E4BC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 61981F410A296D0A15576BC4;
+			remoteInfo = Voop;
+		};
 		4FE90F2621DE209629FD9332 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C7485D87195BE535D587E4BC /* Project object */;
@@ -73,10 +81,12 @@
 		34C6132BE16B2FC6F0F3FC3E /* MCUPeripheral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCUPeripheral.swift; sourceTree = "<group>"; };
 		379D9CDF976DA71F4375E6B0 /* CalculateMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateMetrics.swift; sourceTree = "<group>"; };
 		3F99DEC45EEEC577A6BF3754 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
-		4562ED23BD9A6DD6F7C9A43E /* DeviceRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceRepository.swift; sourceTree = "<group>"; };
+		4745F1500E5A41D671BE7824 /* VoopTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = VoopTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E50F4C870EFEFAF5391D026 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7B63B75A17284FF9B2A047C2 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		7BC4FC3832AAE2EFFA6B7782 /* DetectRidesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectRidesTests.swift; sourceTree = "<group>"; };
 		81860989184021A98870F32E /* RideActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RideActivityController.swift; sourceTree = "<group>"; };
+		8A2B0D8169BCE14088D32E10 /* CalculateMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalculateMetricsTests.swift; sourceTree = "<group>"; };
 		8CB05AFFA9C5717810E1C5B3 /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		9902762718B312424DF218CD /* BLEManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEManager.swift; sourceTree = "<group>"; };
 		A2CD3324FBDA929D8A315D4B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -124,10 +134,20 @@
 			path = Setup;
 			sourceTree = "<group>";
 		};
+		06DA579E23249096A231542C /* VoopTests */ = {
+			isa = PBXGroup;
+			children = (
+				8A2B0D8169BCE14088D32E10 /* CalculateMetricsTests.swift */,
+				7BC4FC3832AAE2EFFA6B7782 /* DetectRidesTests.swift */,
+			);
+			path = VoopTests;
+			sourceTree = "<group>";
+		};
 		1D2E8FDF1A5624533ED4665A = {
 			isa = PBXGroup;
 			children = (
 				EBA973C8A458E9A4A1F4316B /* Voop */,
+				06DA579E23249096A231542C /* VoopTests */,
 				BD1B5BD60751A90450DC4144 /* VoopWidget */,
 				7DDD5866D678B1EFF379A986 /* Frameworks */,
 				D4FDE2A5F7AFDF60C0AAC327 /* Products */,
@@ -175,14 +195,6 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
-		6D03047D88688BA9C80F5D50 /* Repositories */ = {
-			isa = PBXGroup;
-			children = (
-				4562ED23BD9A6DD6F7C9A43E /* DeviceRepository.swift */,
-			);
-			path = Repositories;
-			sourceTree = "<group>";
-		};
 		7DDD5866D678B1EFF379A986 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -205,7 +217,6 @@
 			isa = PBXGroup;
 			children = (
 				4A6A85108F87002D7279807B /* Models */,
-				6D03047D88688BA9C80F5D50 /* Repositories */,
 				F0A9E51F34E38F3D00356691 /* UseCases */,
 			);
 			path = Domain;
@@ -252,6 +263,7 @@
 			isa = PBXGroup;
 			children = (
 				125F26F0973B842A1480B272 /* Voop.app */,
+				4745F1500E5A41D671BE7824 /* VoopTests.xctest */,
 				A7B2BE52FEA9F3E8AA677B32 /* VoopWidget.appex */,
 			);
 			name = Products;
@@ -321,6 +333,24 @@
 			productReference = 125F26F0973B842A1480B272 /* Voop.app */;
 			productType = "com.apple.product-type.application";
 		};
+		86C31E9BA649D5EB7CC95208 /* VoopTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BDE5A0CBFE14B3487AC2C32 /* Build configuration list for PBXNativeTarget "VoopTests" */;
+			buildPhases = (
+				840131E801DFF392CCDD67DE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				99B3F5F2DEA1A7EE056E03DA /* PBXTargetDependency */,
+			);
+			name = VoopTests;
+			packageProductDependencies = (
+			);
+			productName = VoopTests;
+			productReference = 4745F1500E5A41D671BE7824 /* VoopTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		E2BED4651B7459A641F1C9BF /* VoopWidget */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 06BE7B14FC055482F8A41F02 /* Build configuration list for PBXNativeTarget "VoopWidget" */;
@@ -352,6 +382,9 @@
 						DevelopmentTeam = 5S3AM79MK3;
 						ProvisioningStyle = Automatic;
 					};
+					86C31E9BA649D5EB7CC95208 = {
+						DevelopmentTeam = 5S3AM79MK3;
+					};
 					E2BED4651B7459A641F1C9BF = {
 						DevelopmentTeam = 5S3AM79MK3;
 						ProvisioningStyle = Automatic;
@@ -373,12 +406,22 @@
 			projectRoot = "";
 			targets = (
 				61981F410A296D0A15576BC4 /* Voop */,
+				86C31E9BA649D5EB7CC95208 /* VoopTests */,
 				E2BED4651B7459A641F1C9BF /* VoopWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		840131E801DFF392CCDD67DE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D182ED6B62B5723E06DDE5EF /* CalculateMetricsTests.swift in Sources */,
+				9EE25AC7CEEEB3AA002CE9A7 /* DetectRidesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		949142C8353E051CB5A9FC50 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -399,7 +442,6 @@
 				84964D36EACCC4F4F0BEA90F /* CalculateMetrics.swift in Sources */,
 				2B773EFDE1CD771860A0A90A /* ContentView.swift in Sources */,
 				667D6CD52721E98594176401 /* DetectRides.swift in Sources */,
-				280F27C8B58CE779B970629A /* DeviceRepository.swift in Sources */,
 				1C9B649A1A8864C5ABD3FE47 /* HealthKitService.swift in Sources */,
 				D1E0A1862F5CBFBCEA68DE9D /* MCUPeripheral.swift in Sources */,
 				22BA344A7633874B135E525E /* MainView.swift in Sources */,
@@ -419,6 +461,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		99B3F5F2DEA1A7EE056E03DA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 61981F410A296D0A15576BC4 /* Voop */;
+			targetProxy = 46837524FE4C4A8640C451D3 /* PBXContainerItemProxy */;
+		};
 		D88961399F24D1430A4CDE8F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E2BED4651B7459A641F1C9BF /* VoopWidget */;
@@ -427,6 +474,25 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		10B9A2A4C85A06CCFF964E15 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 5S3AM79MK3;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.galaiko.voop.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Voop.app/Voop";
+			};
+			name = Debug;
+		};
 		15774C275F7EA8C32AF42CED /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -614,6 +680,25 @@
 			};
 			name = Release;
 		};
+		C81481AA81023AEB95F464AF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 5S3AM79MK3;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.galaiko.voop.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Voop.app/Voop";
+			};
+			name = Release;
+		};
 		E729ACE338A6537773E88AB2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -640,6 +725,15 @@
 			buildConfigurations = (
 				E729ACE338A6537773E88AB2 /* Debug */,
 				3235B5F165673E366F8D6CC0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		1BDE5A0CBFE14B3487AC2C32 /* Build configuration list for PBXNativeTarget "VoopTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				10B9A2A4C85A06CCFF964E15 /* Debug */,
+				C81481AA81023AEB95F464AF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

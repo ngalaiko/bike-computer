@@ -54,16 +54,18 @@ final class MCUPeripheral: NSObject, CBPeripheralDelegate, @unchecked Sendable {
         error: (any Error)?
     ) {
         guard error == nil, let data = characteristic.value else { return }
+        // CoreBluetooth delivers these callbacks on the central manager's queue, which is
+        // `.main` (see `BLEManager.init`), so we're already on the main actor. Calling the
+        // `@MainActor` callbacks synchronously avoids a per-point `Task` hop — and the runloop
+        // of latency and reorder risk that came with it.
         switch characteristic.uuid {
         case streamCharUUID:
             if let point = unpackDataPoint(bytes: data) {
-                let cb = onDataPoint
-                Task { @MainActor in cb?(point) }
+                MainActor.assumeIsolated { onDataPoint?(point) }
             }
         case statusCharUUID:
             if let status = unpackDeviceStatus(bytes: data) {
-                let cb = onStatusUpdate
-                Task { @MainActor in cb?(status) }
+                MainActor.assumeIsolated { onStatusUpdate?(status) }
             }
         default:
             break

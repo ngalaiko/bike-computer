@@ -1,2 +1,5 @@
 # Rust build output (workspace target at root)
 target/
+
+# Debug data dumps (Settings → Export raw data); may contain ride GPS tracks
+voop-export.csv

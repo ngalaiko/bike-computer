@@ -27,7 +27,7 @@ struct MainView: View {
                     if case .connected = appModel.ble.connectionState {
                         Section("Current") {
                             CurrentValuesRow(
-                                rpm: appModel.currentRpm,
+                                rpm: appModel.liveRpm(at: ctx.date),
                                 location: appModel.currentLocation
                             )
                         }
@@ -87,7 +87,8 @@ struct MainView: View {
     private func sensorIsLive(at now: Date) -> Bool {
         guard case .connected = appModel.ble.connectionState else { return false }
         if appModel.ble.deviceStatus?.sensorConnected == true { return true }
-        if let last = appModel.lastCadenceDate, now.timeIntervalSince(last) < 5 { return true }
+        if let last = appModel.lastCadenceDate,
+           now.timeIntervalSince(last) < AppModel.liveCadenceTimeout { return true }
         return false
     }
 
@@ -249,7 +250,7 @@ private struct CompletedRideRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(ride.startDate.formatted(date: .abbreviated, time: .omitted))
                     .font(.headline)
-                Text("\(ride.startDate.formatted(date: .omitted, time: .shortened)) – \(ride.endDate.formatted(date: .omitted, time: .shortened))")
+                Text(ride.clockRange)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

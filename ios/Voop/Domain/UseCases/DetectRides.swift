@@ -35,11 +35,14 @@ enum DetectRides {
                         )
                     }
                 }
-                return TimestampedPoint(date: absoluteDate(for: raw), coordinate: coord, cumulativeCrankRevs: p.crankRevs ?? 0)
+                return TimestampedPoint(
+                    date: absoluteDate(for: raw),
+                    coordinate: coord,
+                    cumulativeCrankRevs: p.crankRevs ?? 0
+                )
             }
 
             return Ride(
-                id: UUID(),
                 startDate: timestamped.first!.date,
                 endDate: timestamped.last!.date,
                 points: timestamped
@@ -53,7 +56,8 @@ enum DetectRides {
             gearRatio: settings.gearRatio,
             wheelCircumferenceMeters: settings.wheelCircumferenceMeters
         )
-        let longEnough = CalculateMetrics.cadenceDistance(points: ride.points, config: config) >= Double(settings.minDistanceMeters)
+        let distance = CalculateMetrics.cadenceDistance(points: ride.points, config: config)
+        let longEnough = distance >= Double(settings.minDistanceMeters)
         let fastEnough = averageCadence(points: ride.points) >= Double(settings.minCadenceRpm)
         return longEnough && fastEnough
     }

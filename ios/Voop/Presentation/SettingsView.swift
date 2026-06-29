@@ -46,7 +46,10 @@ struct SettingsView: View {
                 } header: {
                     Text("Wheel")
                 } footer: {
-                    Text("Rim size × tire width gives the rolling circumference, combined with the gear to turn pedal revolutions into distance.")
+                    Text(
+                        "Rim size × tire width gives the rolling circumference, combined with the " +
+                            "gear to turn pedal revolutions into distance."
+                    )
                 }
 
                 Section {
@@ -116,7 +119,11 @@ struct SettingsView: View {
                 } header: {
                     Text("Ride detection")
                 } footer: {
-                    Text("A segment counts as a ride only if it stays above the cadence and reaches the distance — filters out walking a fixed gear bike or short rolls. A pause longer than the stop pause ends a ride and clears the live card.")
+                    Text(
+                        "A segment counts as a ride only if it stays above the cadence and reaches " +
+                            "the distance — filters out walking a fixed gear bike or short rolls. A pause " +
+                            "longer than the stop pause ends a ride and clears the live card."
+                    )
                 }
 
                 Section {

@@ -31,6 +31,25 @@ targets:
       - framework: VoopProtocol.xcframework
         embed: false
       - target: VoopWidget
+    scheme:
+      testTargets:
+        - VoopTests
+
+  VoopTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: VoopTests
+    attributes:
+      DevelopmentTeam: 5S3AM79MK3
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.galaiko.voop.tests
+        DEVELOPMENT_TEAM: 5S3AM79MK3
+        GENERATE_INFOPLIST_FILE: true
+    dependencies:
+      - target: Voop
 
   VoopWidget:
     type: app-extension
