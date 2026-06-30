@@ -34,6 +34,10 @@ final class AppModel {
     private var unsavedCount = 0
     private static let saveBatchSize = 10
 
+    /// Set while a coalesced re-detection is pending, so a burst of points (e.g. a reconnect
+    /// replay) collapses into one re-derive instead of a full O(n log n) pass per point.
+    private var redetectPending = false
+
     init() {
         ble = BLEManager()
         health = HealthKitService()
@@ -94,7 +98,7 @@ final class AppModel {
             allPoints.append(pointStore.insert(point))
             unsavedCount += 1
             if unsavedCount >= Self.saveBatchSize { flush() }
-            redetect()
+            scheduleRedetect()
             await reconcileActivity()
         }
     }
@@ -218,5 +222,19 @@ final class AppModel {
 
     private func redetect() {
         detectedRides = DetectRides.detect(points: allPoints, gapThreshold: settings.gapThreshold)
+    }
+
+    /// Coalesced re-detection for the hot per-point path: collapses a burst of points (e.g. a
+    /// reconnect replay) into a single re-derive within the debounce window, rather than running
+    /// a full pass per point. One-shot callers (`reloadPoints`, `deleteRide`) use `redetect`.
+    private func scheduleRedetect() {
+        guard !redetectPending else { return }
+        redetectPending = true
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self else { return }
+            self.redetectPending = false
+            self.redetect()
+        }
     }
 }
