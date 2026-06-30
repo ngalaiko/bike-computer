@@ -27,8 +27,15 @@ final class RideActivityController {
     /// - Parameters:
     ///   - rideStartDate: start of the ongoing ride, or `nil` when no ride is in progress.
     ///   - rideEndDate: end of the ongoing ride (its last point); used to freeze the timer on end.
+    ///   - staleDate: when the system should mark the activity stale if no further update arrives,
+    ///     so a stranded activity (app killed before the heartbeat ends it) stops its live timer.
     ///   - state: content to display while a ride is ongoing.
-    func reconcile(rideStartDate: Date?, rideEndDate: Date?, state: RideActivityAttributes.ContentState?) async {
+    func reconcile(
+        rideStartDate: Date?,
+        rideEndDate: Date?,
+        staleDate: Date?,
+        state: RideActivityAttributes.ContentState?
+    ) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             await end()
             return
@@ -43,11 +50,11 @@ final class RideActivityController {
             // `Activity` isn't Sendable; it's only ever touched on the main actor here, so the
             // unsafe escape hatch lets us await its nonisolated `update` under strict concurrency.
             nonisolated(unsafe) let act = current
-            await act.update(ActivityContent(state: state, staleDate: nil))
+            await act.update(ActivityContent(state: state, staleDate: staleDate))
         } else {
             // Nothing running, or a different ride is — end the old one and start fresh.
             await end()
-            start(rideStartDate: rideStartDate, rideEndDate: rideEndDate, state: state)
+            start(rideStartDate: rideStartDate, rideEndDate: rideEndDate, staleDate: staleDate, state: state)
         }
     }
 
@@ -67,9 +74,9 @@ final class RideActivityController {
         await act.end(ActivityContent(state: finalState, staleDate: nil), dismissalPolicy: .default)
     }
 
-    private func start(rideStartDate: Date, rideEndDate: Date, state: RideActivityAttributes.ContentState) {
+    private func start(rideStartDate: Date, rideEndDate: Date, staleDate: Date?, state: RideActivityAttributes.ContentState) {
         let attributes = RideActivityAttributes(startDate: rideStartDate)
-        let content = ActivityContent(state: state, staleDate: nil)
+        let content = ActivityContent(state: state, staleDate: staleDate)
         do {
             activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
             activeStartDate = rideStartDate

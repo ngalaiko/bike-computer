@@ -128,7 +128,7 @@ final class AppModel {
     /// Drives the Live Activity to match the ongoing ride (or ends it when none is in progress).
     func reconcileActivity(at now: Date = .now) async {
         guard let ride = ongoingRide(at: now) else {
-            await activityController.reconcile(rideStartDate: nil, rideEndDate: nil, state: nil)
+            await activityController.reconcile(rideStartDate: nil, rideEndDate: nil, staleDate: nil, state: nil)
             return
         }
         let config = CalculateMetrics.Config(
@@ -147,7 +147,15 @@ final class AppModel {
             elapsedInterval: ride.startDate ... .distantFuture,
             isFinished: false
         )
-        await activityController.reconcile(rideStartDate: ride.startDate, rideEndDate: ride.endDate, state: state)
+        // Stale once the ride would no longer count as ongoing (last point + stop-pause gap), so
+        // the system stops the live timer even if the app is killed before the heartbeat ends it.
+        let staleDate = ride.endDate.addingTimeInterval(settings.gapThreshold)
+        await activityController.reconcile(
+            rideStartDate: ride.startDate,
+            rideEndDate: ride.endDate,
+            staleDate: staleDate,
+            state: state
+        )
     }
 
     /// Wall-clock loop that keeps the Live Activity honest. The data stream can't detect a ride
