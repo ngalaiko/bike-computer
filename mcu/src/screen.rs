@@ -194,7 +194,8 @@ impl Screen {
             time: None,
         };
 
-        if let crate::clock::Time::Unix { seconds } = crate::clock::now().await {
+        if let Some(millis) = crate::clock::now().await.unix_millis {
+            let seconds = millis / 1000;
             state.time = Some(((seconds / 3600 % 24) as u8, (seconds / 60 % 60) as u8));
         }
 
@@ -214,12 +215,13 @@ impl Screen {
             .await
             {
                 Either4::First(Either::First(gps)) => state.gps = Some(gps),
-                Either4::First(Either::Second(revs)) => state.crank_revs = Some(revs),
+                Either4::First(Either::Second(sample)) => state.crank_revs = Some(sample.revs),
                 Either4::Second(Either::First(connected)) => state.sensor_connected = connected,
                 Either4::Second(Either::Second(bat)) => state.sensor_battery = Some(bat),
                 Either4::Third(connected) => state.ios_connected = connected,
                 Either4::Fourth(()) => {
-                    if let crate::clock::Time::Unix { seconds } = crate::clock::now().await {
+                    if let Some(millis) = crate::clock::now().await.unix_millis {
+                        let seconds = millis / 1000;
                         state.time =
                             Some(((seconds / 3600 % 24) as u8, (seconds / 60 % 60) as u8));
                     }

@@ -34,9 +34,18 @@ impl core::fmt::Display for Error {
 
 impl core::error::Error for Error {}
 
-// Cumulative crank revolutions — sent only when the value changes (bike moving).
+/// One CSC crank reading: the cumulative revolution count plus the sensor's "Last Crank
+/// Event Time" (1/1024 s, u16, wraps every 64 s). Bundled so a single `changed()` delivers
+/// both atomically — the event time is what lets iOS derive jitter-free cadence.
+#[derive(Clone, Copy, PartialEq)]
+pub struct CrankSample {
+    pub revs: u16,
+    pub event_time: u16,
+}
+
+// Crank readings — sent only when the rev count changes (bike moving).
 // 2 receivers: peripheral DataPoint loop + screen.
-pub static CRANK_REVS: Watch<CriticalSectionRawMutex, u16, 2> = Watch::new();
+pub static CRANK_REVS: Watch<CriticalSectionRawMutex, CrankSample, 2> = Watch::new();
 
 // Whether the cadence sensor is connected.
 // 2 receivers: peripheral DataPoint loop + screen.
@@ -207,13 +216,15 @@ pub async fn run(stack: &Stack<'_, MyController, DefaultPacketPool>) {
                     loop {
                         let notif = csc_listener.next().await;
                         let data = notif.as_ref();
+                        // CSC Measurement, crank present (flags bit 1): [flags][revs u16][event_time u16].
                         if data.len() >= 5 && (data[0] & 0x02) != 0 {
                             let revs = u16::from_le_bytes([data[1], data[2]]);
+                            let event_time = u16::from_le_bytes([data[3], data[4]]);
                             if Some(revs) != last_revs {
-                                crank_tx.send(revs);
+                                crank_tx.send(CrankSample { revs, event_time });
                                 last_revs = Some(revs);
                             }
-                            log::debug!("[BLE central] CSC revs={}", revs);
+                            log::debug!("[BLE central] CSC revs={} evt={}", revs, event_time);
                         }
                     }
                 },

@@ -35,7 +35,14 @@ struct Ride: Identifiable, Hashable {
 }
 
 struct TimestampedPoint {
+    /// Absolute time reconstructed by `DetectRides.absoluteDate` (device unix when present, else `receivedAt`).
     let date: Date
+    /// Raw MCU monotonic clock at capture (ms since boot). The jitter-free timing spine
+    /// `CalculateMetrics` uses for interval rates; resets on reboot, wraps as a u32.
+    let uptimeMs: UInt32
     let coordinate: CLLocationCoordinate2D?
     let cumulativeCrankRevs: UInt16
+    /// CSC "Last Crank Event Time" (1/1024 s, wraps every 64 s) when the device sent it.
+    /// `CalculateMetrics` prefers the delta of this over the wall-clock delta for cadence/speed.
+    let crankEventTime: UInt16?
 }

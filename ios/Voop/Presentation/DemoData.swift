@@ -44,8 +44,10 @@
                 )
                 points.append(TimestampedPoint(
                     date: start.addingTimeInterval(t),
+                    uptimeMs: UInt32(t * 1000),
                     coordinate: coord,
-                    cumulativeCrankRevs: UInt16(clamping: Int(revs))
+                    cumulativeCrankRevs: UInt16(clamping: Int(revs)),
+                    crankEventTime: nil
                 ))
             }
             return Ride(

@@ -69,7 +69,9 @@ final class AppModel {
 
     func startReceiving() async {
         for await point in ble.dataPoints {
-            if let revs = point.crankRevs {
+            do {
+                // Every point is a crank event, so it always carries a rev count.
+                let revs = point.crankRevs
                 let now = Date.now
                 if let last = lastCrankPoint {
                     let dt = now.timeIntervalSince(last.date)
@@ -161,18 +163,21 @@ final class AppModel {
     /// Every stored raw point as CSV, including the absolute date used for detection.
     func exportCSV() -> String {
         let points = allPoints
-        var lines = ["index,receivedAt,absoluteDate,unixSeconds,monotonicMs,latMicrodeg,lonMicrodeg,crankRevs"]
+        let header = ["index", "receivedAt", "absoluteDate", "uptimeMs", "unixMillis",
+                      "latMicrodeg", "lonMicrodeg", "crankRevs", "crankEventTime"]
+        var lines = [header.joined(separator: ",")]
         for (index, p) in points.enumerated() {
             let absolute = DetectRides.absoluteDate(for: p).ISO8601Format()
             let columns: [String] = [
                 String(index),
                 p.receivedAt.ISO8601Format(),
                 absolute,
-                p.unixSeconds.map(String.init) ?? "",
-                p.monotonicMs.map(String.init) ?? "",
+                String(p.uptimeMs),
+                p.unixMillis.map(String.init) ?? "",
                 p.latMicrodeg.map(String.init) ?? "",
                 p.lonMicrodeg.map(String.init) ?? "",
-                p.crankRevs.map(String.init) ?? "",
+                String(p.crankRevs),
+                String(p.crankEventTime),
             ]
             lines.append(columns.joined(separator: ","))
         }

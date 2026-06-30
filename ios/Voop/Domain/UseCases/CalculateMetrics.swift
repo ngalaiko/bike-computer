@@ -76,15 +76,15 @@ enum CalculateMetrics {
         ]
 
         for i in 1 ..< points.count {
-            let dt = points[i].date.timeIntervalSince(points[i - 1].date)
+            let interval = intervalSeconds(from: points[i - 1], to: points[i])
             var speedKph = 0.0
             var cadenceRpm = 0.0
-            if dt > 0 {
+            if interval > 0 {
                 let revDelta = Int32(points[i].cumulativeCrankRevs) - Int32(points[i - 1].cumulativeCrankRevs)
                 if revDelta > 0 {
-                    cadenceRpm = Double(revDelta) / dt * 60.0
+                    cadenceRpm = Double(revDelta) / interval * 60.0
                     let distanceM = Double(revDelta) * config.gearRatio * config.wheelCircumferenceMeters
-                    speedKph = (distanceM / dt) * 3.6
+                    speedKph = (distanceM / interval) * 3.6
                 }
             }
             result.append(RideSample(
@@ -96,5 +96,22 @@ enum CalculateMetrics {
             ))
         }
         return result
+    }
+
+    /// Seconds over which a crank-rev delta accrued, from rawest to coarsest source:
+    ///   1. the sensor's "Last Crank Event Time" delta (1/1024 s, measured at the crank —
+    ///      free of all BLE/MCU jitter), trusted only when the raw uptime gap confirms the
+    ///      points are < 64 s apart so the u16 event-time counter wrapped at most once;
+    ///   2. the raw MCU uptime delta (ms, always present, monotonic within a boot session);
+    ///   3. the wall-clock date delta — last resort for pre-sync points dated by `receivedAt`.
+    private static func intervalSeconds(from prev: TimestampedPoint, to cur: TimestampedPoint) -> TimeInterval {
+        let uptimeDeltaMs = cur.uptimeMs &- prev.uptimeMs // u32 wrapping; implausibly large on reboot
+        let uptimeValid = uptimeDeltaMs > 0 && uptimeDeltaMs < 60000
+        if uptimeValid, let a = prev.crankEventTime, let b = cur.crankEventTime {
+            let ticks = b &- a // u16 wrapping delta, in 1/1024 s
+            if ticks > 0 { return TimeInterval(ticks) / 1024.0 }
+        }
+        if uptimeValid { return TimeInterval(uptimeDeltaMs) / 1000.0 }
+        return cur.date.timeIntervalSince(prev.date) // last resort: wall clock
     }
 }

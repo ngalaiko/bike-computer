@@ -10,6 +10,11 @@ enum DetectRides {
     static func detect(points: [RawPoint], gapThreshold: TimeInterval) -> [Ride] {
         guard points.count >= 2 else { return [] }
 
+        // Order by reconstructed absolute time, not storage/arrival order: a buffered batch
+        // replays newest-first, so arrival order ≠ capture order. Each point self-describes its
+        // time (device unix when present), so sorting here restores the true timeline.
+        let points = points.sorted { absoluteDate(for: $0) < absoluteDate(for: $1) }
+
         var segments: [[RawPoint]] = []
         var current: [RawPoint] = [points[0]]
         for point in points.dropFirst() {
@@ -37,8 +42,10 @@ enum DetectRides {
                 }
                 return TimestampedPoint(
                     date: absoluteDate(for: raw),
+                    uptimeMs: p.uptimeMs,
                     coordinate: coord,
-                    cumulativeCrankRevs: p.crankRevs ?? 0
+                    cumulativeCrankRevs: p.crankRevs,
+                    crankEventTime: p.crankEventTime
                 )
             }
 
@@ -81,15 +88,13 @@ enum DetectRides {
         max(0, absoluteDate(for: b).timeIntervalSince(absoluteDate(for: a)))
     }
 
-    /// The time used for detection and metrics: the device's GPS time when available,
-    /// otherwise the time iOS received the point. The two agree within ~1s for
-    /// live-streamed points, so `receivedAt` is a reliable fallback when there's no fix.
+    /// Absolute time for detection and metrics: the device's wall-clock estimate when it had
+    /// one (present on every point once synced, so buffered/replayed points stay correct),
+    /// otherwise the time iOS received the point — only the brief pre-first-sync tail.
     static func absoluteDate(for raw: RawPoint) -> Date {
-        switch raw.dataPoint.time {
-        case let .unix(s):
-            Date(timeIntervalSince1970: TimeInterval(s))
-        case .monotonic:
-            raw.receivedAt
+        if let ms = raw.unixMillis {
+            return Date(timeIntervalSince1970: TimeInterval(ms) / 1000.0)
         }
+        return raw.receivedAt
     }
 }

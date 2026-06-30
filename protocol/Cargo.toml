@@ -8,7 +8,6 @@ std = []
 uniffi = ["dep:uniffi", "std"]
 
 [dependencies]
-heapless = "0.8"
 uniffi = { version = "0.29", optional = true }
 
 [lib]

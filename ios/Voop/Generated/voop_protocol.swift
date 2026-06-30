@@ -463,6 +463,22 @@ private struct FfiConverterInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
+private struct FfiConverterUInt64: FfiConverterPrimitive {
+    typealias FfiType = UInt64
+    typealias SwiftType = UInt64
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt64 {
+        try lift(readInt(&buf))
+    }
+
+    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
 private struct FfiConverterBool: FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -608,25 +624,65 @@ public func FfiConverterTypeBatteryStatus_lower(_ value: BatteryStatus) -> RustB
 }
 
 /**
- * A single telemetry sample streamed over STREAM_CHAR_UUID.
+ * A single telemetry sample streamed over STREAM_CHAR_UUID — a raw event, no on-device
+ * interpretation. The consumer (iOS) reconstructs the absolute timeline from these.
  *
- * Wire format (little-endian, variable, 5–15 bytes):
- * [flags u8][time u32][lat i32?][lon i32?][crank_revs u16?]
- * flags: bit 0 = unix time (else monotonic), bit 1 = coords, bit 2 = crank_revs
+ * Wire format (little-endian, fixed 24 bytes):
+ * [uptime_ms u32][unix_millis u64][lat i32][lon i32][crank_revs u16][crank_event_time u16]
+ * Sentinels for the optionals: unix_millis == 0 ⇒ None; lat/lon == i32::MIN ⇒ None.
  */
 public struct DataPoint {
-    public var time: Time
+    /**
+     * Raw MCU monotonic clock at capture (ms since boot). Always present — the spine the
+     * consumer uses for ordering, relative timing, reboot detection, and backfill. Resets
+     * on reboot; wraps as a u32 (~49.7 days).
+     */
+    public var uptimeMs: UInt32
+    /**
+     * The device's wall-clock estimate when it has an anchor (GPS or iOS time sync),
+     * extrapolated from the same monotonic clock; None before the first-ever sync. Carried
+     * per point so a buffered/replayed batch is self-describing across reconnects and reboots.
+     */
+    public var unixMillis: UInt64?
     public var latMicrodeg: Int32?
     public var lonMicrodeg: Int32?
-    public var crankRevs: UInt16?
+    /**
+     * CSC cumulative crank revolutions (raw). Always present — a point *is* a crank event.
+     */
+    public var crankRevs: UInt16
+    /**
+     * CSC "Last Crank Event Time": the sensor's own timestamp of the last crank revolution,
+     * 1/1024 s, wraps every 64 s. Lets the consumer derive cadence from Δrevs ÷ Δevent_time.
+     */
+    public var crankEventTime: UInt16
 
     /// Default memberwise initializers are never public by default, so we
     /// declare one manually.
-    public init(time: Time, latMicrodeg: Int32?, lonMicrodeg: Int32?, crankRevs: UInt16?) {
-        self.time = time
+    public init(
+        /* 
+         * Raw MCU monotonic clock at capture (ms since boot). Always present — the spine the
+         * consumer uses for ordering, relative timing, reboot detection, and backfill. Resets
+         * on reboot; wraps as a u32 (~49.7 days).
+         */ uptimeMs: UInt32,
+        /* 
+            * The device's wall-clock estimate when it has an anchor (GPS or iOS time sync),
+            * extrapolated from the same monotonic clock; None before the first-ever sync. Carried
+            * per point so a buffered/replayed batch is self-describing across reconnects and reboots.
+            */ unixMillis: UInt64?, latMicrodeg: Int32?, lonMicrodeg: Int32?,
+        /* 
+            * CSC cumulative crank revolutions (raw). Always present — a point *is* a crank event.
+            */ crankRevs: UInt16,
+        /* 
+            * CSC "Last Crank Event Time": the sensor's own timestamp of the last crank revolution,
+            * 1/1024 s, wraps every 64 s. Lets the consumer derive cadence from Δrevs ÷ Δevent_time.
+            */ crankEventTime: UInt16
+    ) {
+        self.uptimeMs = uptimeMs
+        self.unixMillis = unixMillis
         self.latMicrodeg = latMicrodeg
         self.lonMicrodeg = lonMicrodeg
         self.crankRevs = crankRevs
+        self.crankEventTime = crankEventTime
     }
 }
 
@@ -636,7 +692,10 @@ public struct DataPoint {
 
 extension DataPoint: Equatable, Hashable {
     public static func == (lhs: DataPoint, rhs: DataPoint) -> Bool {
-        if lhs.time != rhs.time {
+        if lhs.uptimeMs != rhs.uptimeMs {
+            return false
+        }
+        if lhs.unixMillis != rhs.unixMillis {
             return false
         }
         if lhs.latMicrodeg != rhs.latMicrodeg {
@@ -648,14 +707,19 @@ extension DataPoint: Equatable, Hashable {
         if lhs.crankRevs != rhs.crankRevs {
             return false
         }
+        if lhs.crankEventTime != rhs.crankEventTime {
+            return false
+        }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(time)
+        hasher.combine(uptimeMs)
+        hasher.combine(unixMillis)
         hasher.combine(latMicrodeg)
         hasher.combine(lonMicrodeg)
         hasher.combine(crankRevs)
+        hasher.combine(crankEventTime)
     }
 }
 
@@ -665,18 +729,22 @@ extension DataPoint: Equatable, Hashable {
 public struct FfiConverterTypeDataPoint: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DataPoint {
         try DataPoint(
-            time: FfiConverterTypeTime.read(from: &buf),
+            uptimeMs: FfiConverterUInt32.read(from: &buf),
+            unixMillis: FfiConverterOptionUInt64.read(from: &buf),
             latMicrodeg: FfiConverterOptionInt32.read(from: &buf),
             lonMicrodeg: FfiConverterOptionInt32.read(from: &buf),
-            crankRevs: FfiConverterOptionUInt16.read(from: &buf)
+            crankRevs: FfiConverterUInt16.read(from: &buf),
+            crankEventTime: FfiConverterUInt16.read(from: &buf)
         )
     }
 
     public static func write(_ value: DataPoint, into buf: inout [UInt8]) {
-        FfiConverterTypeTime.write(value.time, into: &buf)
+        FfiConverterUInt32.write(value.uptimeMs, into: &buf)
+        FfiConverterOptionUInt64.write(value.unixMillis, into: &buf)
         FfiConverterOptionInt32.write(value.latMicrodeg, into: &buf)
         FfiConverterOptionInt32.write(value.lonMicrodeg, into: &buf)
-        FfiConverterOptionUInt16.write(value.crankRevs, into: &buf)
+        FfiConverterUInt16.write(value.crankRevs, into: &buf)
+        FfiConverterUInt16.write(value.crankEventTime, into: &buf)
     }
 }
 
@@ -836,73 +904,6 @@ public func FfiConverterTypeBatteryState_lower(_ value: BatteryState) -> RustBuf
 
 extension BatteryState: Equatable, Hashable {}
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-/* 
- * Time carried in each DataPoint.
- */
-
-public enum Time {
-    /**
-     * Milliseconds since MCU boot. Used before iOS has written a time sync.
-     */
-    case monotonic(ms: UInt32)
-    /**
-     * Seconds since Unix epoch. Used after iOS writes TIME_SYNC_CHAR_UUID.
-     */
-    case unix(seconds: UInt32)
-}
-
-#if compiler(>=6)
-    extension Time: Sendable {}
-#endif
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeTime: FfiConverterRustBuffer {
-    typealias SwiftType = Time
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Time {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        case 1: return try .monotonic(ms: FfiConverterUInt32.read(from: &buf))
-
-        case 2: return try .unix(seconds: FfiConverterUInt32.read(from: &buf))
-
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Time, into buf: inout [UInt8]) {
-        switch value {
-        case let .monotonic(ms):
-            writeInt(&buf, Int32(1))
-            FfiConverterUInt32.write(ms, into: &buf)
-
-        case let .unix(seconds):
-            writeInt(&buf, Int32(2))
-            FfiConverterUInt32.write(seconds, into: &buf)
-        }
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTime_lift(_ buf: RustBuffer) throws -> Time {
-    try FfiConverterTypeTime.lift(buf)
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-public func FfiConverterTypeTime_lower(_ value: Time) -> RustBuffer {
-    FfiConverterTypeTime.lower(value)
-}
-
-extension Time: Equatable, Hashable {}
-
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
@@ -930,30 +931,6 @@ private struct FfiConverterOptionUInt8: FfiConverterRustBuffer {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
-private struct FfiConverterOptionUInt16: FfiConverterRustBuffer {
-    typealias SwiftType = UInt16?
-
-    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterUInt16.write(value, into: &buf)
-    }
-
-    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterUInt16.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
 private struct FfiConverterOptionInt32: FfiConverterRustBuffer {
     typealias SwiftType = Int32?
 
@@ -970,6 +947,30 @@ private struct FfiConverterOptionInt32: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+private struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
+    typealias SwiftType = UInt64?
+
+    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt64.write(value, into: &buf)
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt64.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }

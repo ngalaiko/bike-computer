@@ -3,10 +3,12 @@ import Testing
 @testable import Voop
 
 struct DetectRidesTests {
-    /// A point timed by GPS unix seconds, so `absoluteDate` is deterministic (independent of
-    /// `receivedAt`) and the gap arithmetic is exact.
-    private func point(unix: UInt32, revs: UInt16? = nil) -> RawPoint {
-        RawPoint(from: DataPoint(time: .unix(seconds: unix), latMicrodeg: nil, lonMicrodeg: nil, crankRevs: revs))
+    /// A point timed by a device unix observation, so `absoluteDate` is deterministic
+    /// (independent of `receivedAt`) and the gap arithmetic is exact. Takes seconds for
+    /// readability and widens to the wire's millisecond unit.
+    private func point(unix: UInt32, revs: UInt16 = 0) -> RawPoint {
+        RawPoint(from: DataPoint(uptimeMs: unix, unixMillis: UInt64(unix) * 1000,
+                                 latMicrodeg: nil, lonMicrodeg: nil, crankRevs: revs, crankEventTime: 0))
     }
 
     @Test func splitsSegmentsOnGapLongerThanThreshold() {
@@ -47,5 +49,20 @@ struct DetectRidesTests {
 
     @Test func absoluteDateUsesUnixTimeWhenPresent() {
         #expect(DetectRides.absoluteDate(for: point(unix: 1_234_567)) == Date(timeIntervalSince1970: 1_234_567))
+    }
+
+    @Test func sortsOutOfOrderPointsByReconstructedTime() {
+        // A buffered batch replays newest-first, so arrival order ≠ capture order. Detection
+        // must reorder by each point's own reconstructed time into one contiguous ride.
+        let points = [
+            point(unix: 1003, revs: 30),
+            point(unix: 1000, revs: 0),
+            point(unix: 1002, revs: 20),
+            point(unix: 1001, revs: 10),
+        ]
+        let rides = DetectRides.detect(points: points, gapThreshold: 60)
+        #expect(rides.count == 1)
+        #expect(rides[0].startDate == Date(timeIntervalSince1970: 1000))
+        #expect(rides[0].points.map(\.cumulativeCrankRevs) == [0, 10, 20, 30])
     }
 }

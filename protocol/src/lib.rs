@@ -69,84 +69,59 @@ impl DeviceStatus {
     }
 }
 
-/// Time carried in each DataPoint.
-// uniffi requires named fields in enum variants.
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "uniffi", derive(uniffi::Enum))]
-pub enum Time {
-    /// Milliseconds since MCU boot. Used before iOS has written a time sync.
-    Monotonic { ms: u32 },
-    /// Seconds since Unix epoch. Used after iOS writes TIME_SYNC_CHAR_UUID.
-    Unix { seconds: u32 },
-}
-
-/// A single telemetry sample streamed over STREAM_CHAR_UUID.
+/// A single telemetry sample streamed over STREAM_CHAR_UUID — a raw event, no on-device
+/// interpretation. The consumer (iOS) reconstructs the absolute timeline from these.
 ///
-/// Wire format (little-endian, variable, 5–15 bytes):
-///   [flags u8][time u32][lat i32?][lon i32?][crank_revs u16?]
-///   flags: bit 0 = unix time (else monotonic), bit 1 = coords, bit 2 = crank_revs
+/// Wire format (little-endian, fixed 24 bytes):
+///   [uptime_ms u32][unix_millis u64][lat i32][lon i32][crank_revs u16][crank_event_time u16]
+/// Sentinels for the optionals: unix_millis == 0 ⇒ None; lat/lon == i32::MIN ⇒ None.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "uniffi", derive(uniffi::Record))]
 pub struct DataPoint {
-    pub time: Time,
+    /// Raw MCU monotonic clock at capture (ms since boot). Always present — the spine the
+    /// consumer uses for ordering, relative timing, reboot detection, and backfill. Resets
+    /// on reboot; wraps as a u32 (~49.7 days).
+    pub uptime_ms: u32,
+    /// The device's wall-clock estimate when it has an anchor (GPS or iOS time sync),
+    /// extrapolated from the same monotonic clock; None before the first-ever sync. Carried
+    /// per point so a buffered/replayed batch is self-describing across reconnects and reboots.
+    pub unix_millis: Option<u64>,
     pub lat_microdeg: Option<i32>,
     pub lon_microdeg: Option<i32>,
-    pub crank_revs: Option<u16>,
+    /// CSC cumulative crank revolutions (raw). Always present — a point *is* a crank event.
+    pub crank_revs: u16,
+    /// CSC "Last Crank Event Time": the sensor's own timestamp of the last crank revolution,
+    /// 1/1024 s, wraps every 64 s. Lets the consumer derive cadence from Δrevs ÷ Δevent_time.
+    pub crank_event_time: u16,
 }
 
-const FLAG_UNIX: u8 = 0x01;
-const FLAG_COORDS: u8 = 0x02;
-const FLAG_CRANK: u8 = 0x04;
+const COORD_NONE: i32 = i32::MIN;
 
 impl DataPoint {
-    pub fn pack(&self) -> heapless::Vec<u8, 15> {
-        let mut buf: heapless::Vec<u8, 15> = heapless::Vec::new();
-        let mut flags: u8 = 0;
-        if matches!(self.time, Time::Unix { .. }) { flags |= FLAG_UNIX; }
-        if self.lat_microdeg.is_some() { flags |= FLAG_COORDS; }
-        if self.crank_revs.is_some() { flags |= FLAG_CRANK; }
-        let _ = buf.push(flags);
-        let time_val = match self.time {
-            Time::Monotonic { ms } => ms,
-            Time::Unix { seconds } => seconds,
-        };
-        let _ = buf.extend_from_slice(&time_val.to_le_bytes());
-        if let Some(lat) = self.lat_microdeg {
-            let _ = buf.extend_from_slice(&lat.to_le_bytes());
-            let _ = buf.extend_from_slice(&self.lon_microdeg.unwrap_or(0).to_le_bytes());
-        }
-        if let Some(revs) = self.crank_revs {
-            let _ = buf.extend_from_slice(&revs.to_le_bytes());
-        }
-        buf
+    pub fn pack(&self) -> [u8; 24] {
+        let mut b = [0u8; 24];
+        b[0..4].copy_from_slice(&self.uptime_ms.to_le_bytes());
+        b[4..12].copy_from_slice(&self.unix_millis.unwrap_or(0).to_le_bytes());
+        b[12..16].copy_from_slice(&self.lat_microdeg.unwrap_or(COORD_NONE).to_le_bytes());
+        b[16..20].copy_from_slice(&self.lon_microdeg.unwrap_or(COORD_NONE).to_le_bytes());
+        b[20..22].copy_from_slice(&self.crank_revs.to_le_bytes());
+        b[22..24].copy_from_slice(&self.crank_event_time.to_le_bytes());
+        b
     }
 
     pub fn unpack(bytes: &[u8]) -> Option<Self> {
-        if bytes.len() < 5 { return None; }
-        let flags = bytes[0];
-        let time_val = u32::from_le_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]);
-        let time = if flags & FLAG_UNIX != 0 {
-            Time::Unix { seconds: time_val }
-        } else {
-            Time::Monotonic { ms: time_val }
-        };
-        let mut offset = 5;
-        let (lat_microdeg, lon_microdeg) = if flags & FLAG_COORDS != 0 {
-            if offset + 8 > bytes.len() { return None; }
-            let lat = i32::from_le_bytes([bytes[offset], bytes[offset+1], bytes[offset+2], bytes[offset+3]]);
-            let lon = i32::from_le_bytes([bytes[offset+4], bytes[offset+5], bytes[offset+6], bytes[offset+7]]);
-            offset += 8;
-            (Some(lat), Some(lon))
-        } else {
-            (None, None)
-        };
-        let crank_revs = if flags & FLAG_CRANK != 0 {
-            if offset + 2 > bytes.len() { return None; }
-            Some(u16::from_le_bytes([bytes[offset], bytes[offset + 1]]))
-        } else {
-            None
-        };
-        Some(DataPoint { time, lat_microdeg, lon_microdeg, crank_revs })
+        let b: [u8; 24] = bytes.get(..24)?.try_into().ok()?;
+        let unix = u64::from_le_bytes(b[4..12].try_into().unwrap());
+        let lat = i32::from_le_bytes(b[12..16].try_into().unwrap());
+        let lon = i32::from_le_bytes(b[16..20].try_into().unwrap());
+        Some(DataPoint {
+            uptime_ms: u32::from_le_bytes(b[0..4].try_into().unwrap()),
+            unix_millis: (unix != 0).then_some(unix),
+            lat_microdeg: (lat != COORD_NONE).then_some(lat),
+            lon_microdeg: (lon != COORD_NONE).then_some(lon),
+            crank_revs: u16::from_le_bytes(b[20..22].try_into().unwrap()),
+            crank_event_time: u16::from_le_bytes(b[22..24].try_into().unwrap()),
+        })
     }
 }
 
@@ -176,4 +151,54 @@ fn unpack_data_point(bytes: Vec<u8>) -> Option<DataPoint> {
 #[uniffi::export]
 fn unpack_device_status(bytes: Vec<u8>) -> Option<DeviceStatus> {
     DeviceStatus::unpack(&bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_eq_point(a: DataPoint, b: DataPoint) {
+        assert_eq!(a.uptime_ms, b.uptime_ms);
+        assert_eq!(a.unix_millis, b.unix_millis);
+        assert_eq!(a.lat_microdeg, b.lat_microdeg);
+        assert_eq!(a.lon_microdeg, b.lon_microdeg);
+        assert_eq!(a.crank_revs, b.crank_revs);
+        assert_eq!(a.crank_event_time, b.crank_event_time);
+    }
+
+    #[test]
+    fn roundtrips_anchored_point_with_coords() {
+        let dp = DataPoint {
+            uptime_ms: 1_805_000,
+            unix_millis: Some(1_782_714_859_321),
+            lat_microdeg: Some(57_705_670),
+            lon_microdeg: Some(11_940_034),
+            crank_revs: 42,
+            crank_event_time: 50_123,
+        };
+        assert_eq!(dp.pack().len(), 24);
+        assert_eq_point(dp, DataPoint::unpack(&dp.pack()).expect("unpack"));
+    }
+
+    #[test]
+    fn roundtrips_pre_sync_point_without_unix_or_coords() {
+        // Before any time sync and before a GPS fix: only the raw uptime + crank fields.
+        let dp = DataPoint {
+            uptime_ms: 32_832,
+            unix_millis: None,
+            lat_microdeg: None,
+            lon_microdeg: None,
+            crank_revs: 7,
+            crank_event_time: 9_001,
+        };
+        let packed = dp.pack();
+        assert_eq!(u64::from_le_bytes(packed[4..12].try_into().unwrap()), 0); // unix sentinel
+        assert_eq!(i32::from_le_bytes(packed[12..16].try_into().unwrap()), i32::MIN); // lat sentinel
+        assert_eq_point(dp, DataPoint::unpack(&packed).expect("unpack"));
+    }
+
+    #[test]
+    fn unpack_rejects_short_buffers() {
+        assert!(DataPoint::unpack(&[0u8; 23]).is_none());
+    }
 }

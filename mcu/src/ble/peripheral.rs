@@ -17,9 +17,9 @@ pub struct BikeServer {
 
 #[gatt_service(uuid = "bece0001-ede4-4b59-8c60-1ee44d963a05")]
 struct BikeService {
-    /// Packed DataPoint wire format, max 15 bytes. See voop_protocol::DataPoint::pack().
-    #[characteristic(uuid = "bece0002-ede4-4b59-8c60-1ee44d963a05", notify, value = [0u8; 15])]
-    stream: [u8; 15],
+    /// Packed DataPoint wire format, 24 bytes fixed. See voop_protocol::DataPoint::pack().
+    #[characteristic(uuid = "bece0002-ede4-4b59-8c60-1ee44d963a05", notify, value = [0u8; 24])]
+    stream: [u8; 24],
     /// Current device status snapshot. See voop_protocol::DeviceStatus::pack().
     #[characteristic(uuid = "bece0003-ede4-4b59-8c60-1ee44d963a05", read, notify, value = [100u8, 0u8, 0u8, 0xFFu8])]
     status: [u8; 4],
@@ -126,11 +126,13 @@ pub async fn run(stack: &Stack<'_, super::MyController, DefaultPacketPool>) {
                 )
                 .await
                 {
-                    Either4::First(revs) => {
-                        let time = crate::clock::now().await;
+                    Either4::First(sample) => {
+                        let clock = crate::clock::now().await;
                         let point = DataPoint {
-                            time,
-                            crank_revs: Some(revs),
+                            uptime_ms: clock.uptime_ms,
+                            unix_millis: clock.unix_millis,
+                            crank_revs: sample.revs,
+                            crank_event_time: sample.event_time,
                             lat_microdeg: current_lat,
                             lon_microdeg: current_lon,
                         };
